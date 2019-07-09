@@ -2,6 +2,8 @@ import {compileShader, createShaderProgram} from "./Graphics/Shader";
 import { VAO } from './Graphics/VAO';
 import { VBO } from './Graphics/VBO';
 import { VBOLayout } from './Graphics/VBOLayout';
+import { Camera } from "./Graphics/Camera";
+import { mat4 } from "gl-matrix";
 
 export declare var gl : WebGLRenderingContext;
 export declare var glext: OES_vertex_array_object;
@@ -38,10 +40,14 @@ export class Game {
         attribute vec4 a_position;
         attribute vec4 a_color;
 
+        uniform mat4 M;
+        uniform mat4 V;
+        uniform mat4 P;
+
         varying vec4 v_color;
 
         void main() {
-          gl_Position = a_position;
+          gl_Position = P * V * M * a_position;
           v_color = a_color;
         }
       `;
@@ -82,11 +88,11 @@ export class Game {
     layout.addAttribute(gl.FLOAT, 3);
     layout.addAttribute(gl.FLOAT, 4);
     vao.addBuffer(vbo, layout);
-
-
-    // MVP Matrix
+   
     
+    const camera : Camera = new Camera([-1, 0, -3]);
 
+    
 
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
@@ -96,7 +102,26 @@ export class Game {
     gl.clearColor(0, 0, 0.4, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    // Bind program
     gl.useProgram(program);
+
+     // Bind MVP Matrix Uniforms
+    gl.uniformMatrix4fv(
+      gl.getUniformLocation(program, "P")!,
+      false,
+      camera.projection);
+    gl.uniformMatrix4fv(
+      gl.getUniformLocation(program, "V")!,
+      false,
+      camera.view);
+
+    const model = mat4.create();
+    gl.uniformMatrix4fv(
+      gl.getUniformLocation(program, "M")!,
+      false,
+      model);
+
+    // Bind VAO
     vao.bind();
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
