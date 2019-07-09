@@ -3,7 +3,15 @@ const path = require('path');
 module.exports = {
   mode: "development",
   entry: './src/ts/index.ts',
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'public/')
+  },
   devtool: 'source-map',
+  devServer: {
+    contentBase: "public",
+    watchContentBase: true,
+  },
   module: {
     rules: [
       {
@@ -16,13 +24,4 @@ module.exports = {
   resolve: {
     extensions: [ '.tsx', '.ts', '.js' ]
   },
-  output: {
-    filename: 'bundle.js',
-    path: path.resolve(__dirname, 'public/js/')
-  },
-  devServer: {
-    publicPath: "/",
-    contentBase: "./public",
-    hot: true
-  }
 };

@@ -123,7 +123,7 @@ var Game = /** @class */ (function () {
     }
     Game.prototype.start = function () {
         initGL();
-        var vsSource = "\n        attribute vec4 aVertexPosition;\n        attribute vec4 aVertexColor;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_Position = aVertexPosition;\n          v_color = aVertexColor;\n        }\n      ";
+        var vsSource = "\n        attribute vec4 a_position;\n        attribute vec4 a_color;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_Position = a_position;\n          v_color = a_color;\n        }\n      ";
         var fsSource = "\n        precision mediump float;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_FragColor = v_color;\n        }\n      ";
         // Compile shaders
         var vert = Shader_1.compileShader(vsSource, exports.gl.VERTEX_SHADER);
@@ -131,45 +131,26 @@ var Game = /** @class */ (function () {
         // Create program
         var program = Shader_1.createShaderProgram(vert, frag);
         // Create VAO
-        var vaoID = exports.glext.createVertexArrayOES();
-        exports.glext.bindVertexArrayOES(vaoID);
-        var vertexBufferData = new Float32Array([
-            -1.0, -1.0, 0.0,
-            1.0, -1.0, 0.0,
-            0.0, 1.0, 0.0
-        ]);
-        // For all attributes
-        // Create a buffer or already have on created
-        var vertexBuffer = exports.gl.createBuffer();
-        // Bind and buffer the data
-        exports.gl.bindBuffer(exports.gl.ARRAY_BUFFER, vertexBuffer);
-        exports.gl.bufferData(exports.gl.ARRAY_BUFFER, vertexBufferData, exports.gl.STATIC_DRAW);
-        // Get the attribute location
-        var loc = exports.gl.getAttribLocation(program, "aVertexPosition");
-        // Set attribute pointer to buffer
-        exports.gl.vertexAttribPointer(loc, 3, exports.gl.FLOAT, false, 0, 0);
-        // Enable array
-        exports.gl.enableVertexAttribArray(loc);
-        // End forall 
-        // Once all data is bound to the VAO, its good practice to unbind it
-        // Else we might bind other buffers to the same VAO if we are not careful
-        exports.glext.bindVertexArrayOES(null);
         var data = new Float32Array([
             -1.0, -1.0, 0.0, 1, 0, 0, 1,
             1.0, -1.0, 0.0, 0, 1, 0, 1,
             0.0, 1.0, 0.0, 0, 0, 1, 1
         ]);
-        var vaoo = new VAO_1.VAO();
-        var vboo = new VBO_1.VBO(data);
+        var vao = new VAO_1.VAO();
+        var vbo = new VBO_1.VBO(data);
         var layout = new VBOLayout_1.VBOLayout();
         layout.addAttribute(exports.gl.FLOAT, 3);
         layout.addAttribute(exports.gl.FLOAT, 4);
-        vaoo.addBuffer(vboo, layout);
+        vao.addBuffer(vbo, layout);
+        // MVP Matrix
+        // Enable depth testing
+        exports.gl.enable(exports.gl.DEPTH_TEST);
+        exports.gl.depthFunc(exports.gl.LESS);
         // Clear screen
         exports.gl.clearColor(0, 0, 0.4, 1);
         exports.gl.clear(exports.gl.COLOR_BUFFER_BIT | exports.gl.DEPTH_BUFFER_BIT);
         exports.gl.useProgram(program);
-        vaoo.bind();
+        vao.bind();
         exports.gl.drawArrays(exports.gl.TRIANGLES, 0, 3);
     };
     return Game;

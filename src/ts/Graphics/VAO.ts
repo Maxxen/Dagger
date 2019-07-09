@@ -25,6 +25,7 @@ export class VAO {
     for (var i = 0; i < layout.elements.length; i++){
 
       const elem = layout.elements[i];
+
       gl.enableVertexAttribArray(i);
       // This is really confusing, gl.vertexAttribPointer takes (index, SIZE, ...)
       // size in this case is NOT the size of the elements, but instead the number of components

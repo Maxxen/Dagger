@@ -35,14 +35,14 @@ export class Game {
     initGL();
   
     const vsSource = `
-        attribute vec4 aVertexPosition;
-        attribute vec4 aVertexColor;
+        attribute vec4 a_position;
+        attribute vec4 a_color;
 
         varying vec4 v_color;
 
         void main() {
-          gl_Position = aVertexPosition;
-          v_color = aVertexColor;
+          gl_Position = a_position;
+          v_color = a_color;
         }
       `;
 
@@ -79,11 +79,18 @@ export class Game {
     const vbo = new VBO(data);
     const layout = new VBOLayout();
 
-    layout.addAttribute(gl.FLOAT, 3)
+    layout.addAttribute(gl.FLOAT, 3);
     layout.addAttribute(gl.FLOAT, 4);
-    vao.addBuffer(vbo, layout)
+    vao.addBuffer(vbo, layout);
 
+
+    // MVP Matrix
     
+
+
+    // Enable depth testing
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);
 
     // Clear screen
     gl.clearColor(0, 0, 0.4, 1);
