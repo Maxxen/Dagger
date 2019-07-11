@@ -1,41 +1,42 @@
-import {compileShader, createShaderProgram} from "./Graphics/Shader";
-import { VAO } from './Graphics/VAO';
-import { VBO } from './Graphics/VBO';
-import { VBOLayout } from './Graphics/VBOLayout';
+import { Shader } from "./Graphics/Shader";
+import { VAO } from "./Graphics/VAO";
+import { VBO } from "./Graphics/VBO";
+import { VertexLayout, VertexAttribute } from "./Graphics/VertexLayout";
 import { Camera } from "./Graphics/Camera";
 import { mat4 } from "gl-matrix";
+import { UniformMat4 } from "./Graphics/Uniform";
+import { Material } from "./Graphics/Material";
 
-export declare var gl : WebGLRenderingContext;
+export declare var gl: WebGLRenderingContext;
 export declare var glext: OES_vertex_array_object;
 
 export function initGL() {
-  const canvas = <HTMLCanvasElement> document.querySelector("#glCanvas")!;
-    // Initialize the GL context
-    const ctx = canvas.getContext("webgl");  
+  const canvas = <HTMLCanvasElement>document.querySelector("#glCanvas")!;
+  // Initialize the GL context
+  const ctx = canvas.getContext("webgl");
 
-    // Only continue if WebGL is available and working
-    if (ctx === null) {
-      alert("Unable to initialize WebGL. Your browser or machine may not support it.");
-      return;
-    }
-    const ext = ctx.getExtension("OES_vertex_array_object");
+  // Only continue if WebGL is available and working
+  if (ctx === null) {
+    alert(
+      "Unable to initialize WebGL. Your browser or machine may not support it."
+    );
+    return;
+  }
+  const ext = ctx.getExtension("OES_vertex_array_object");
 
-    if (ext === null) {
-      alert("OES Vertex array object extension not supported!");
-      return;
-    }
+  if (ext === null) {
+    alert("OES Vertex array object extension not supported!");
+    return;
+  }
 
-    gl = ctx;
-    glext = ext;
+  gl = ctx;
+  glext = ext;
 }
 
-
 export class Game {
-
   start() {
-
     initGL();
-  
+
     const vsSource = `
         attribute vec4 a_position;
         attribute vec4 a_color;
@@ -62,37 +63,45 @@ export class Game {
         }
       `;
 
-    
-
-    // Compile shaders
-    const vert = compileShader(vsSource, gl.VERTEX_SHADER)!;
-    const frag = compileShader(fsSource, gl.FRAGMENT_SHADER)!;
-
     // Create program
-    const program = createShaderProgram(vert, frag)!;
+    const shader = new Shader(vsSource, fsSource);
 
-  
     // Create VAO
- 
-    const data = new Float32Array([
-      -1.0, -1.0, 0.0,  1, 0, 0, 1,
-      1.0, -1.0, 0.0,   0, 1, 0, 1,
-      0.0, 1.0, 0.0,    0, 0, 1, 1
-    ])
 
+    const data = new Float32Array([
+      -1.0,
+      -1.0,
+      0.0,
+      1,
+      0,
+      0,
+      1,
+      1.0,
+      -1.0,
+      0.0,
+      0,
+      1,
+      0,
+      1,
+      0.0,
+      1.0,
+      0.0,
+      0,
+      0,
+      1,
+      1
+    ]);
 
     const vao = new VAO();
     const vbo = new VBO(data);
-    const layout = new VBOLayout();
+    const layout = new VertexLayout(
+      { type: VertexAttribute.FLOAT, count: 3 },
+      { type: VertexAttribute.FLOAT, count: 4 }
+    );
 
-    layout.addAttribute(gl.FLOAT, 3);
-    layout.addAttribute(gl.FLOAT, 4);
     vao.addBuffer(vbo, layout);
-   
-    
-    const camera : Camera = new Camera([-1, 0, -3]);
 
-    
+    const camera: Camera = new Camera([-1, 0, -3]);
 
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
@@ -102,24 +111,15 @@ export class Game {
     gl.clearColor(0, 0, 0.4, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Bind program
-    gl.useProgram(program);
+    // Create material
+    const mat = new Material(
+      shader,
+      new UniformMat4("P", camera.projection),
+      new UniformMat4("V", camera.view),
+      new UniformMat4("M", mat4.create())
+    );
 
-     // Bind MVP Matrix Uniforms
-    gl.uniformMatrix4fv(
-      gl.getUniformLocation(program, "P")!,
-      false,
-      camera.projection);
-    gl.uniformMatrix4fv(
-      gl.getUniformLocation(program, "V")!,
-      false,
-      camera.view);
-
-    const model = mat4.create();
-    gl.uniformMatrix4fv(
-      gl.getUniformLocation(program, "M")!,
-      false,
-      model);
+    mat.use();
 
     // Bind VAO
     vao.bind();

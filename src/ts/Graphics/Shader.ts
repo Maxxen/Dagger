@@ -1,31 +1,46 @@
 import { gl } from "../Game";
 
-export function compileShader(source : string, type : number) : WebGLShader | null {
-  const shaderID = gl.createShader(type)!;
+export class Shader {
+  private program: WebGLProgram;
 
-  gl.shaderSource(shaderID, source);
-  console.log("Compiling shader " + source);
-  gl.compileShader(shaderID);
+  constructor(vSource: string, fSource: string) {
+    // Compile shaders
+    const vert = this.compileShader(vSource, gl.VERTEX_SHADER)!;
+    const frag = this.compileShader(fSource, gl.FRAGMENT_SHADER)!;
 
-  if(!gl.getShaderParameter(shaderID, gl.COMPILE_STATUS)) {
-    alert("Error compiling shader " + gl.getShaderInfoLog(shaderID));
-    gl.deleteShader(shaderID);
-    return null
+    // Create program
+    this.program = this.createShaderProgram(vert, frag)!;
   }
-  return shaderID;
-}
 
-export function createShaderProgram(vert : WebGLShader, frag : WebGLShader) : WebGLProgram | null {
+  private compileShader(source: string, type: number): WebGLShader | null {
+    const shaderID = gl.createShader(type)!;
+
+    gl.shaderSource(shaderID, source);
+    console.log("Compiling shader " + source);
+    gl.compileShader(shaderID);
+
+    if (!gl.getShaderParameter(shaderID, gl.COMPILE_STATUS)) {
+      alert("Error compiling shader " + gl.getShaderInfoLog(shaderID));
+      gl.deleteShader(shaderID);
+      return null;
+    }
+    return shaderID;
+  }
+
+  private createShaderProgram(
+    vert: WebGLShader,
+    frag: WebGLShader
+  ): WebGLProgram | null {
     const programID = gl.createProgram()!;
     gl.attachShader(programID, vert);
     gl.attachShader(programID, frag);
 
     gl.linkProgram(programID);
 
-    if(!gl.getProgramParameter(programID, gl.LINK_STATUS)){
+    if (!gl.getProgramParameter(programID, gl.LINK_STATUS)) {
       alert("Error linking program " + gl.getProgramInfoLog(programID));
       gl.deleteProgram(programID);
-      return null
+      return null;
     }
 
     gl.detachShader(programID, vert);
@@ -33,6 +48,35 @@ export function createShaderProgram(vert : WebGLShader, frag : WebGLShader) : We
 
     gl.deleteShader(vert);
     gl.deleteShader(frag);
-    
-  return programID;
+    return programID;
+  }
+
+  public use() {
+    gl.useProgram(this.program);
+  }
+
+  public getUniformCount(): number {
+    return gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
+  }
+
+  public getUniformNames(): string[] {
+    const count = this.getUniformCount();
+    const names: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const info = gl.getActiveUniform(this.program, i)!;
+      names.push(info.name);
+    }
+    return names;
+  }
+
+  public getUniformLocations(): { [key: string]: WebGLUniformLocation } {
+    const locations: { [key: string]: WebGLUniformLocation } = {};
+
+    const count = this.getUniformCount();
+    for (let i = 0; i < count; i++) {
+      const info = gl.getActiveUniform(this.program, i)!;
+      locations[info.name] = gl.getUniformLocation(this.program, info.name)!;
+    }
+    return locations;
+  }
 }
