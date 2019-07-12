@@ -7784,27 +7784,48 @@ var Game = /** @class */ (function () {
             1,
             1
         ]);
-        var vao = new VAO_1.VAO();
-        var vbo = new VBO_1.VBO(data);
+        // Create vertex layout
         var layout = new VertexLayout_1.VertexLayout({ type: VertexLayout_1.VertexAttribute.FLOAT, count: 3 }, { type: VertexLayout_1.VertexAttribute.FLOAT, count: 4 });
-        vao.addBuffer(vbo, layout);
+        // Create Camera
         var camera = new Camera_1.Camera([-1, 0, -3]);
+        // Create material
+        var mat = new Material_1.Material(shader, new Uniform_1.UniformMat4("P", camera.projection), new Uniform_1.UniformMat4("V", camera.view), new Uniform_1.UniformMat4("M", gl_matrix_1.mat4.create()));
+        // Create Mesh
+        var mesh = new Mesh(data, layout, mat);
         // Enable depth testing
         exports.gl.enable(exports.gl.DEPTH_TEST);
         exports.gl.depthFunc(exports.gl.LESS);
         // Clear screen
         exports.gl.clearColor(0, 0, 0.4, 1);
         exports.gl.clear(exports.gl.COLOR_BUFFER_BIT | exports.gl.DEPTH_BUFFER_BIT);
-        // Create material
-        var mat = new Material_1.Material(shader, new Uniform_1.UniformMat4("P", camera.projection), new Uniform_1.UniformMat4("V", camera.view), new Uniform_1.UniformMat4("M", gl_matrix_1.mat4.create()));
-        mat.use();
-        // Bind VAO
-        vao.bind();
-        exports.gl.drawArrays(exports.gl.TRIANGLES, 0, 3);
+        // Draw Mesh!
+        mesh.draw();
     };
     return Game;
 }());
 exports.Game = Game;
+var Mesh = /** @class */ (function () {
+    function Mesh(data, layout, material) {
+        this.vao = new VAO_1.VAO();
+        this.vbo = new VBO_1.VBO(data);
+        this.vao.addBuffer(this.vbo, layout);
+        this.material = material;
+    }
+    Mesh.prototype.draw = function () {
+        var _a;
+        var extraUniforms = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            extraUniforms[_i] = arguments[_i];
+        }
+        // Apply material
+        (_a = this.material).use.apply(_a, extraUniforms);
+        // Bind VAO
+        this.vao.bind();
+        // Draw mesh!
+        exports.gl.drawArrays(exports.gl.TRIANGLES, 0, 3);
+    };
+    return Mesh;
+}());
 
 
 /***/ }),
@@ -7888,6 +7909,8 @@ var Material = /** @class */ (function () {
         }
         this.shader = shader;
         this.uniforms = uniforms;
+        // Fetch all uniform locations once and map from name to location so we can
+        // quickly query location just by name without having to jump to GPU
         this.locations = shader.getUniformLocations();
     }
     Material.prototype.setMat4 = function (name, value) {
@@ -7917,6 +7940,10 @@ var Material = /** @class */ (function () {
         additionalUniforms.forEach(function (u) {
             u.send(_this.locations[u.name]);
         });
+        console.log("Uniforms: ");
+        for (var key in this.locations) {
+            console.log(key);
+        }
     };
     return Material;
 }());
@@ -7992,7 +8019,7 @@ var Shader = /** @class */ (function () {
         var count = this.getUniformCount();
         for (var i = 0; i < count; i++) {
             var info = Game_1.gl.getActiveUniform(this.program, i);
-            locations[info.name] = i;
+            locations[info.name] = Game_1.gl.getUniformLocation(this.program, info.name);
         }
         return locations;
     };
@@ -8027,7 +8054,6 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
-var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
 var Uniform = /** @class */ (function () {
     function Uniform(name, value) {
         this.name = name;
@@ -8042,7 +8068,7 @@ var UniformMat4 = /** @class */ (function (_super) {
         return _super !== null && _super.apply(this, arguments) || this;
     }
     UniformMat4.prototype.send = function (location) {
-        Game_1.gl.uniformMatrix4fv(location, false, gl_matrix_1.mat4.create());
+        Game_1.gl.uniformMatrix4fv(location, false, this.value);
     };
     return UniformMat4;
 }(Uniform));

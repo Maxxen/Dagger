@@ -4,7 +4,7 @@ import { VBO } from "./Graphics/VBO";
 import { VertexLayout, VertexAttribute } from "./Graphics/VertexLayout";
 import { Camera } from "./Graphics/Camera";
 import { mat4 } from "gl-matrix";
-import { UniformMat4 } from "./Graphics/Uniform";
+import { UniformMat4, Uniform, UniformType } from "./Graphics/Uniform";
 import { Material } from "./Graphics/Material";
 
 export declare var gl: WebGLRenderingContext;
@@ -92,16 +92,24 @@ export class Game {
       1
     ]);
 
-    const vao = new VAO();
-    const vbo = new VBO(data);
+    // Create vertex layout
     const layout = new VertexLayout(
       { type: VertexAttribute.FLOAT, count: 3 },
       { type: VertexAttribute.FLOAT, count: 4 }
     );
 
-    vao.addBuffer(vbo, layout);
-
+    // Create Camera
     const camera: Camera = new Camera([-1, 0, -3]);
+
+    // Create material
+    const mat = new Material(
+      shader,
+      new UniformMat4("P", camera.projection),
+      new UniformMat4("V", camera.view)
+    );
+
+    // Create Mesh
+    const mesh = new Mesh(data, layout, mat);
 
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
@@ -111,18 +119,30 @@ export class Game {
     gl.clearColor(0, 0, 0.4, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // Create material
-    const mat = new Material(
-      shader,
-      new UniformMat4("P", camera.projection),
-      new UniformMat4("V", camera.view),
-      new UniformMat4("M", mat4.create())
-    );
+    // Draw Mesh!
+    mesh.draw(new UniformMat4("M", mat4.create()));
+  }
+}
 
-    mat.use();
+class Mesh {
+  vao: VAO = new VAO();
+  vbo: VBO;
+  material: Material;
+
+  constructor(data: Float32Array, layout: VertexLayout, material: Material) {
+    this.vbo = new VBO(data);
+    this.vao.addBuffer(this.vbo, layout);
+    this.material = material;
+  }
+
+  draw(...extraUniforms: Uniform<UniformType>[]) {
+    // Apply material
+    this.material.use(...extraUniforms);
 
     // Bind VAO
-    vao.bind();
+    this.vao.bind();
+
+    // Draw mesh!
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
