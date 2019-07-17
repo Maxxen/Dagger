@@ -1,11 +1,4 @@
-interface VertexLayoutElement {
-  type: number;
-  count: number;
-  size: number;
-  normalized: boolean;
-}
-
-export enum VertexAttribute {
+export enum AttribType {
   BYTE = 0x1400,
   UNSIGNED_BYTE = 0x1401,
   SHORT = 0x1402,
@@ -15,11 +8,21 @@ export enum VertexAttribute {
   FLOAT = 0x1406
 }
 
-export class VertexLayout {
-  _elements: VertexLayoutElement[] = [];
-  stride: number = 0;
+export type AttribSize = 1 | 2 | 3 | 4;
+export type AttribCount = 1 | 2 | 3 | 4;
 
-  constructor(...elements: { type: number; count: number }[]) {
+interface AttribElement {
+  type: AttribType;
+  count: AttribCount;
+  size: AttribSize;
+  normalized: boolean;
+}
+
+export class VertexLayout {
+  private _elements: AttribElement[] = [];
+  private stride: number = 0;
+
+  public constructor(...elements: { type: AttribType; count: AttribCount }[]) {
     elements.forEach(({ type, count }) => {
       this.add(type, count);
     });
@@ -29,9 +32,9 @@ export class VertexLayout {
     return this._elements;
   }
 
-  public add(type: VertexAttribute, count: number) {
+  protected add(type: AttribType, count: AttribCount) {
     switch (type) {
-      case VertexAttribute.FLOAT: {
+      case AttribType.FLOAT: {
         this._elements.push({
           type: type,
           count: count,
@@ -42,7 +45,7 @@ export class VertexLayout {
         break;
       }
 
-      case VertexAttribute.UNSIGNED_INT: {
+      case AttribType.UNSIGNED_INT: {
         this._elements.push({
           type: type,
           count: count,
@@ -53,7 +56,7 @@ export class VertexLayout {
         break;
       }
 
-      case VertexAttribute.UNSIGNED_BYTE: {
+      case AttribType.UNSIGNED_BYTE: {
         this._elements.push({
           type: type,
           count: count,
@@ -68,6 +71,5 @@ export class VertexLayout {
         break;
       }
     }
-    return this;
   }
 }
