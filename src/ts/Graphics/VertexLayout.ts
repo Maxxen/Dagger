@@ -20,7 +20,7 @@ interface AttribElement {
 
 export class VertexLayout {
   private _elements: AttribElement[] = [];
-  private stride: number = 0;
+  public stride: number = 0;
 
   public constructor(...elements: { type: AttribType; count: AttribCount }[]) {
     elements.forEach(({ type, count }) => {

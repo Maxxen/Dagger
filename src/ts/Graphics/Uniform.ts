@@ -5,10 +5,8 @@ export type UniformType = mat4 | number;
 
 export abstract class Uniform<T extends UniformType> {
   public value: T;
-  public name: string;
 
-  constructor(name: string, value: T) {
-    this.name = name;
+  constructor(value: T) {
     this.value = value;
   }
   abstract send(location: WebGLUniformLocation): void;

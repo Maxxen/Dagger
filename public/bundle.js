@@ -7725,14 +7725,12 @@ var forEach = function () {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Shader_1 = __webpack_require__(/*! ./Graphics/Shader */ "./src/ts/Graphics/Shader.ts");
-var VAO_1 = __webpack_require__(/*! ./Graphics/VAO */ "./src/ts/Graphics/VAO.ts");
-var VBO_1 = __webpack_require__(/*! ./Graphics/VBO */ "./src/ts/Graphics/VBO.ts");
 var VertexLayout_1 = __webpack_require__(/*! ./Graphics/VertexLayout */ "./src/ts/Graphics/VertexLayout.ts");
 var Camera_1 = __webpack_require__(/*! ./Graphics/Camera */ "./src/ts/Graphics/Camera.ts");
 var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
 var Uniform_1 = __webpack_require__(/*! ./Graphics/Uniform */ "./src/ts/Graphics/Uniform.ts");
-var Material_1 = __webpack_require__(/*! ./Graphics/Material */ "./src/ts/Graphics/Material.ts");
+var Mesh_1 = __webpack_require__(/*! ./Graphics/Mesh */ "./src/ts/Graphics/Mesh.ts");
+var Effect_1 = __webpack_require__(/*! ./Graphics/Effect */ "./src/ts/Graphics/Effect.ts");
 function initGL() {
     var canvas = document.querySelector("#glCanvas");
     // Initialize the GL context
@@ -7758,8 +7756,6 @@ var Game = /** @class */ (function () {
         initGL();
         var vsSource = "\n        attribute vec4 a_position;\n        attribute vec4 a_color;\n\n        uniform mat4 M;\n        uniform mat4 V;\n        uniform mat4 P;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_Position = P * V * M * a_position;\n          v_color = a_color;\n        }\n      ";
         var fsSource = "\n        precision mediump float;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_FragColor = v_color;\n        }\n      ";
-        // Create program
-        var shader = new Shader_1.Shader(vsSource, fsSource);
         // Create VAO
         var data = new Float32Array([
             -1.0,
@@ -7785,13 +7781,36 @@ var Game = /** @class */ (function () {
             1
         ]);
         // Create vertex layout
-        var layout = new VertexLayout_1.VertexLayout({ type: VertexLayout_1.VertexAttribute.FLOAT, count: 3 }, { type: VertexLayout_1.VertexAttribute.FLOAT, count: 4 });
+        var layout = new VertexLayout_1.VertexLayout({ type: VertexLayout_1.AttribType.FLOAT, count: 3 }, { type: VertexLayout_1.AttribType.FLOAT, count: 4 });
         // Create Camera
         var camera = new Camera_1.Camera([-1, 0, -3]);
-        // Create material
-        var mat = new Material_1.Material(shader, new Uniform_1.UniformMat4("P", camera.projection), new Uniform_1.UniformMat4("V", camera.view), new Uniform_1.UniformMat4("M", gl_matrix_1.mat4.create()));
+        // Create Effect
+        var shaderInfo = {
+            attributes: {
+                a_position: "vec3",
+                a_color: "vec4"
+            },
+            varying: {
+                v_color: "vec4"
+            },
+            vert: {
+                uniforms: {
+                    V: new Uniform_1.UniformMat4(gl_matrix_1.mat4.create()),
+                    P: new Uniform_1.UniformMat4(camera.projection),
+                    M: new Uniform_1.UniformMat4(camera.view)
+                },
+                textures: {},
+                source: vsSource
+            },
+            frag: {
+                uniforms: {},
+                textures: {},
+                source: fsSource
+            }
+        };
+        var effect = new Effect_1.Effect(shaderInfo);
         // Create Mesh
-        var mesh = new Mesh(data, layout, mat);
+        var mesh = new Mesh_1.Mesh(data, layout, effect);
         // Enable depth testing
         exports.gl.enable(exports.gl.DEPTH_TEST);
         exports.gl.depthFunc(exports.gl.LESS);
@@ -7804,28 +7823,6 @@ var Game = /** @class */ (function () {
     return Game;
 }());
 exports.Game = Game;
-var Mesh = /** @class */ (function () {
-    function Mesh(data, layout, material) {
-        this.vao = new VAO_1.VAO();
-        this.vbo = new VBO_1.VBO(data);
-        this.vao.addBuffer(this.vbo, layout);
-        this.material = material;
-    }
-    Mesh.prototype.draw = function () {
-        var _a;
-        var extraUniforms = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            extraUniforms[_i] = arguments[_i];
-        }
-        // Apply material
-        (_a = this.material).use.apply(_a, extraUniforms);
-        // Bind VAO
-        this.vao.bind();
-        // Draw mesh!
-        exports.gl.drawArrays(exports.gl.TRIANGLES, 0, 3);
-    };
-    return Mesh;
-}());
 
 
 /***/ }),
@@ -7890,64 +7887,80 @@ exports.Camera = Camera;
 
 /***/ }),
 
-/***/ "./src/ts/Graphics/Material.ts":
-/*!*************************************!*\
-  !*** ./src/ts/Graphics/Material.ts ***!
-  \*************************************/
+/***/ "./src/ts/Graphics/Effect.ts":
+/*!***********************************!*\
+  !*** ./src/ts/Graphics/Effect.ts ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+var Shader_1 = __webpack_require__(/*! ./Shader */ "./src/ts/Graphics/Shader.ts");
+var Effect = /** @class */ (function () {
+    function Effect(info) {
+        this.uniforms = __assign({}, info.vert.uniforms, info.frag.uniforms);
+        this.shader = new Shader_1.Shader(info.vert.source, info.frag.source);
+        this.locations = this.shader.getUniformLocations();
+    }
+    Effect.prototype.use = function () {
+        this.shader.use();
+        console.log("Uniforms bound: ");
+        for (var name_1 in this.uniforms) {
+            this.uniforms[name_1].send(this.locations[name_1]);
+            console.log(name_1);
+        }
+    };
+    return Effect;
+}());
+exports.Effect = Effect;
+
+
+/***/ }),
+
+/***/ "./src/ts/Graphics/Mesh.ts":
+/*!*********************************!*\
+  !*** ./src/ts/Graphics/Mesh.ts ***!
+  \*********************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
+var VAO_1 = __webpack_require__(/*! ./VAO */ "./src/ts/Graphics/VAO.ts");
+var VBO_1 = __webpack_require__(/*! ./VBO */ "./src/ts/Graphics/VBO.ts");
 var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
-var Material = /** @class */ (function () {
-    function Material(shader) {
-        var uniforms = [];
-        for (var _i = 1; _i < arguments.length; _i++) {
-            uniforms[_i - 1] = arguments[_i];
-        }
-        this.shader = shader;
-        this.uniforms = uniforms;
-        // Fetch all uniform locations once and map from name to location so we can
-        // quickly query location just by name without having to jump to GPU
-        this.locations = shader.getUniformLocations();
+var Mesh = /** @class */ (function () {
+    function Mesh(data, layout, effect) {
+        this.vao = new VAO_1.VAO();
+        this.vbo = new VBO_1.VBO(data);
+        this.vao.addBuffer(this.vbo, layout);
+        this.effect = effect;
     }
-    Material.prototype.setMat4 = function (name, value) {
-        Game_1.gl.uniformMatrix4fv(this.locations[name], false, value);
+    Mesh.prototype.draw = function () {
+        // Apply effect
+        this.effect.use();
+        // Bind VAO
+        this.vao.bind();
+        // Draw mesh2!
+        Game_1.gl.drawArrays(Game_1.gl.TRIANGLES, 0, 3);
     };
-    Material.prototype.setFloat = function (name, value) {
-        Game_1.gl.uniform1f(this.locations[name], value);
-    };
-    // ... figure out a efficient and easy way to store constant uniforms
-    // given when constructing (or parsing from serialization) the material.
-    // Ideally, use() would set all the constant uniforms stored in the material
-    // instance and additionally set uniforms given by a parameter.
-    // I think something like this is more like it.
-    // Although, wouldnt it be nice if we could compute uniform values on the fly?
-    // Perhaps by passing a closure. I.E.
-    // new Uniform("Projection", () => {camera.projection}
-    Material.prototype.use = function () {
-        var _this = this;
-        var additionalUniforms = [];
-        for (var _i = 0; _i < arguments.length; _i++) {
-            additionalUniforms[_i] = arguments[_i];
-        }
-        this.shader.use();
-        this.uniforms.forEach(function (u) {
-            u.send(_this.locations[u.name]);
-        });
-        additionalUniforms.forEach(function (u) {
-            u.send(_this.locations[u.name]);
-        });
-        console.log("Uniforms: ");
-        for (var key in this.locations) {
-            console.log(key);
-        }
-    };
-    return Material;
+    return Mesh;
 }());
-exports.Material = Material;
+exports.Mesh = Mesh;
 
 
 /***/ }),
@@ -8055,8 +8068,7 @@ var __extends = (this && this.__extends) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
 var Uniform = /** @class */ (function () {
-    function Uniform(name, value) {
-        this.name = name;
+    function Uniform(value) {
         this.value = value;
     }
     return Uniform;
@@ -8160,16 +8172,16 @@ exports.VBO = VBO;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var VertexAttribute;
-(function (VertexAttribute) {
-    VertexAttribute[VertexAttribute["BYTE"] = 5120] = "BYTE";
-    VertexAttribute[VertexAttribute["UNSIGNED_BYTE"] = 5121] = "UNSIGNED_BYTE";
-    VertexAttribute[VertexAttribute["SHORT"] = 5122] = "SHORT";
-    VertexAttribute[VertexAttribute["UNSIGNED_SHORT"] = 5123] = "UNSIGNED_SHORT";
-    VertexAttribute[VertexAttribute["INT"] = 5124] = "INT";
-    VertexAttribute[VertexAttribute["UNSIGNED_INT"] = 5125] = "UNSIGNED_INT";
-    VertexAttribute[VertexAttribute["FLOAT"] = 5126] = "FLOAT";
-})(VertexAttribute = exports.VertexAttribute || (exports.VertexAttribute = {}));
+var AttribType;
+(function (AttribType) {
+    AttribType[AttribType["BYTE"] = 5120] = "BYTE";
+    AttribType[AttribType["UNSIGNED_BYTE"] = 5121] = "UNSIGNED_BYTE";
+    AttribType[AttribType["SHORT"] = 5122] = "SHORT";
+    AttribType[AttribType["UNSIGNED_SHORT"] = 5123] = "UNSIGNED_SHORT";
+    AttribType[AttribType["INT"] = 5124] = "INT";
+    AttribType[AttribType["UNSIGNED_INT"] = 5125] = "UNSIGNED_INT";
+    AttribType[AttribType["FLOAT"] = 5126] = "FLOAT";
+})(AttribType = exports.AttribType || (exports.AttribType = {}));
 var VertexLayout = /** @class */ (function () {
     function VertexLayout() {
         var _this = this;
@@ -8193,7 +8205,7 @@ var VertexLayout = /** @class */ (function () {
     });
     VertexLayout.prototype.add = function (type, count) {
         switch (type) {
-            case VertexAttribute.FLOAT: {
+            case AttribType.FLOAT: {
                 this._elements.push({
                     type: type,
                     count: count,
@@ -8203,7 +8215,7 @@ var VertexLayout = /** @class */ (function () {
                 this.stride += 4 * count;
                 break;
             }
-            case VertexAttribute.UNSIGNED_INT: {
+            case AttribType.UNSIGNED_INT: {
                 this._elements.push({
                     type: type,
                     count: count,
@@ -8213,7 +8225,7 @@ var VertexLayout = /** @class */ (function () {
                 this.stride += 4 * count;
                 break;
             }
-            case VertexAttribute.UNSIGNED_BYTE: {
+            case AttribType.UNSIGNED_BYTE: {
                 this._elements.push({
                     type: type,
                     count: count,
@@ -8228,7 +8240,6 @@ var VertexLayout = /** @class */ (function () {
                 break;
             }
         }
-        return this;
     };
     return VertexLayout;
 }());

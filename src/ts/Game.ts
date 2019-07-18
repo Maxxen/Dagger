@@ -1,11 +1,9 @@
-import { Shader } from "./Graphics/Shader";
-import { VAO } from "./Graphics/VAO";
-import { VBO } from "./Graphics/VBO";
-import { VertexLayout, VertexAttribute } from "./Graphics/VertexLayout";
+import { VertexLayout, AttribType } from "./Graphics/VertexLayout";
 import { Camera } from "./Graphics/Camera";
 import { mat4 } from "gl-matrix";
-import { UniformMat4, Uniform, UniformType } from "./Graphics/Uniform";
-import { Material } from "./Graphics/Material";
+import { UniformMat4 } from "./Graphics/Uniform";
+import { Mesh } from "./Graphics/Mesh";
+import { Effect } from "./Graphics/Effect";
 
 export declare var gl: WebGLRenderingContext;
 export declare var glext: OES_vertex_array_object;
@@ -63,9 +61,6 @@ export class Game {
         }
       `;
 
-    // Create program
-    const shader = new Shader(vsSource, fsSource);
-
     // Create VAO
 
     const data = new Float32Array([
@@ -94,22 +89,43 @@ export class Game {
 
     // Create vertex layout
     const layout = new VertexLayout(
-      { type: VertexAttribute.FLOAT, count: 3 },
-      { type: VertexAttribute.FLOAT, count: 4 }
+      { type: AttribType.FLOAT, count: 3 },
+      { type: AttribType.FLOAT, count: 4 }
     );
 
     // Create Camera
     const camera: Camera = new Camera([-1, 0, -3]);
 
-    // Create material
-    const mat = new Material(
-      shader,
-      new UniformMat4("P", camera.projection),
-      new UniformMat4("V", camera.view)
-    );
+    // Create Effect
+
+    const shaderInfo = {
+      attributes: {
+        a_position: "vec3",
+        a_color: "vec4"
+      },
+      varying: {
+        v_color: "vec4"
+      },
+      vert: {
+        uniforms: {
+          V: new UniformMat4(mat4.create()),
+          P: new UniformMat4(camera.projection),
+          M: new UniformMat4(camera.view)
+        },
+        textures: {},
+        source: vsSource
+      },
+      frag: {
+        uniforms: {},
+        textures: {},
+        source: fsSource
+      }
+    };
+
+    const effect = new Effect(shaderInfo);
 
     // Create Mesh
-    const mesh = new Mesh(data, layout, mat);
+    const mesh = new Mesh(data, layout, effect);
 
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
@@ -120,29 +136,6 @@ export class Game {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Draw Mesh!
-    mesh.draw(new UniformMat4("M", mat4.create()));
-  }
-}
-
-class Mesh {
-  vao: VAO = new VAO();
-  vbo: VBO;
-  material: Material;
-
-  constructor(data: Float32Array, layout: VertexLayout, material: Material) {
-    this.vbo = new VBO(data);
-    this.vao.addBuffer(this.vbo, layout);
-    this.material = material;
-  }
-
-  draw(...extraUniforms: Uniform<UniformType>[]) {
-    // Apply material
-    this.material.use(...extraUniforms);
-
-    // Bind VAO
-    this.vao.bind();
-
-    // Draw mesh!
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    mesh.draw();
   }
 }
