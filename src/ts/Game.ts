@@ -1,10 +1,3 @@
-import { VertexLayout, AttribType } from "./Graphics/VertexLayout";
-import { Camera } from "./Graphics/Camera";
-import { mat4 } from "gl-matrix";
-import { UniformMat4 } from "./Graphics/Uniform";
-import { Mesh } from "./Graphics/Mesh";
-import { Effect } from "./Graphics/Effect";
-
 export declare var gl: WebGLRenderingContext;
 export declare var glext: OES_vertex_array_object;
 
@@ -31,111 +24,57 @@ export function initGL() {
   glext = ext;
 }
 
-export class Game {
-  start() {
+export abstract class Game {
+  private deltaTime: number = 0;
+  protected lastTimestamp: number = 0;
+  private maxFPS: number = 60;
+  private timestep: number = 1000 / 60;
+
+  constructor() {
     initGL();
+  }
+  public start() {
+    this.setup();
+    this.init();
+    this.load();
 
-    const vsSource = `
-        attribute vec4 a_position;
-        attribute vec4 a_color;
+    requestAnimationFrame(this.loop.bind(this));
+  }
 
-        uniform mat4 M;
-        uniform mat4 V;
-        uniform mat4 P;
-
-        varying vec4 v_color;
-
-        void main() {
-          gl_Position = P * V * M * a_position;
-          v_color = a_color;
-        }
-      `;
-
-    const fsSource = `
-        precision mediump float;
-
-        varying vec4 v_color;
-
-        void main() {
-          gl_FragColor = v_color;
-        }
-      `;
-
-    // Create VAO
-
-    const data = new Float32Array([
-      -1.0,
-      -1.0,
-      0.0,
-      1,
-      0,
-      0,
-      1,
-      1.0,
-      -1.0,
-      0.0,
-      0,
-      1,
-      0,
-      1,
-      0.0,
-      1.0,
-      0.0,
-      0,
-      0,
-      1,
-      1
-    ]);
-
-    // Create vertex layout
-    const layout = new VertexLayout(
-      { type: AttribType.FLOAT, count: 3 },
-      { type: AttribType.FLOAT, count: 4 }
-    );
-
-    // Create Camera
-    const camera: Camera = new Camera([-1, 0, -3]);
-
-    // Create Effect
-
-    const shaderInfo = {
-      attributes: {
-        a_position: "vec3",
-        a_color: "vec4"
-      },
-      varying: {
-        v_color: "vec4"
-      },
-      vert: {
-        uniforms: {
-          V: new UniformMat4(mat4.create()),
-          P: new UniformMat4(camera.projection),
-          M: new UniformMat4(camera.view)
-        },
-        textures: {},
-        source: vsSource
-      },
-      frag: {
-        uniforms: {},
-        textures: {},
-        source: fsSource
-      }
-    };
-
-    const effect = new Effect(shaderInfo);
-
-    // Create Mesh
-    const mesh = new Mesh(data, layout, effect);
-
+  private setup() {
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LESS);
+  }
 
+  // TODO: Proper time class and constructs.
+  private loop(timestamp: number) {
+    if (timestamp < this.lastTimestamp + 1000 / this.maxFPS) {
+      requestAnimationFrame(this.loop.bind(this));
+      return;
+    }
+    this.deltaTime += timestamp - this.lastTimestamp;
+    this.lastTimestamp = timestamp;
+
+    // Simulate the total elapsed time in fixed-size chunks
+    while (this.deltaTime >= this.timestep) {
+      this.update(this.timestep);
+      this.deltaTime -= this.timestep;
+    }
+
+    this.clear();
+    this.draw();
+    requestAnimationFrame(this.loop.bind(this));
+  }
+
+  private clear() {
     // Clear screen
     gl.clearColor(0, 0, 0.4, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    // Draw Mesh!
-    mesh.draw();
   }
+
+  abstract init(): void;
+  abstract load(): void;
+  abstract update(deltaTime: number): void;
+  abstract draw(): void;
 }

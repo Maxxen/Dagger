@@ -1,6 +1,5 @@
-import { Game } from "./Game";
-
+import { MyGame } from "./MyGame";
 
 console.log("Hello world!");
-const game = new Game();
+const game = new MyGame();
 game.start();

@@ -1,7 +1,9 @@
 import { gl } from "../Game";
+import { mat4 } from "gl-matrix";
 
 export class Shader {
   private program: WebGLProgram;
+  private uniformLocations: { [key: string]: WebGLUniformLocation };
 
   constructor(vSource: string, fSource: string) {
     // Compile shaders
@@ -10,6 +12,10 @@ export class Shader {
 
     // Create program
     this.program = this.createShaderProgram(vert, frag)!;
+
+    // Cache uniform locations
+    this.use();
+    this.uniformLocations = this.getUniformLocations();
   }
 
   private compileShader(source: string, type: number): WebGLShader | null {
@@ -55,21 +61,11 @@ export class Shader {
     gl.useProgram(this.program);
   }
 
-  public getUniformCount(): number {
+  private getUniformCount(): number {
     return gl.getProgramParameter(this.program, gl.ACTIVE_UNIFORMS);
   }
 
-  public getUniformNames(): string[] {
-    const count = this.getUniformCount();
-    const names: string[] = [];
-    for (let i = 0; i < count; i++) {
-      const info = gl.getActiveUniform(this.program, i)!;
-      names.push(info.name);
-    }
-    return names;
-  }
-
-  public getUniformLocations(): { [key: string]: WebGLUniformLocation } {
+  private getUniformLocations(): { [key: string]: WebGLUniformLocation } {
     const locations: { [key: string]: WebGLUniformLocation } = {};
 
     const count = this.getUniformCount();
@@ -78,5 +74,13 @@ export class Shader {
       locations[info.name] = gl.getUniformLocation(this.program, info.name)!;
     }
     return locations;
+  }
+
+  public setMat4(name: string, value: mat4) {
+    gl.uniformMatrix4fv(this.uniformLocations[name], false, value);
+  }
+
+  public setFloat(name: string, value: number) {
+    gl.uniform1f(this.uniformLocations[name], value);
   }
 }
