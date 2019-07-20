@@ -16,9 +16,9 @@ export class MyGame extends Game {
 
     const builder = new GeometryBuilder<VertexPositionColor>();
     const geometry = builder
-      .add(new VertexPositionColor(new Vector3(-1, -1, 0), new Color(1, 0, 0)))
-      .add(new VertexPositionColor(new Vector3(1, -1, 0), new Color(0, 1, 0)))
-      .add(new VertexPositionColor(new Vector3(0, 1, 0), new Color(0, 0, 1)))
+      .add(new VertexPositionColor(new Vector3(-1, -1, 0), Color.Red))
+      .add(new VertexPositionColor(new Vector3(1, -1, 0), Color.Green))
+      .add(new VertexPositionColor(new Vector3(0, 1, 0), Color.Blue))
       .finalize();
 
     this.material = new BasicMaterial();
