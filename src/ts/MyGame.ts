@@ -3,6 +3,9 @@ import { Camera } from "./Graphics/Camera";
 import { Mesh } from "./Graphics/Mesh";
 import { BasicMaterial, Material } from "./Graphics/Material";
 import { GeometryBuilder } from "./Graphics/GeometryBuilder";
+import { VertexPositionColor } from "./Graphics/Vertex";
+import { Vector3 } from "./Graphics/Vector3";
+import { Color } from "./Graphics/Color";
 
 export class MyGame extends Game {
   material: Material;
@@ -11,11 +14,11 @@ export class MyGame extends Game {
   constructor() {
     super();
 
-    const builder = new GeometryBuilder();
+    const builder = new GeometryBuilder<VertexPositionColor>();
     const geometry = builder
-      .add([-1, -1, 0], [1, 0, 0, 1])
-      .add([1, -1, 0], [0, 1, 0, 1])
-      .add([0, 1, 0], [0, 0, 1, 1])
+      .add(new VertexPositionColor(new Vector3(-1, -1, 0), new Color(1, 0, 0)))
+      .add(new VertexPositionColor(new Vector3(1, -1, 0), new Color(0, 1, 0)))
+      .add(new VertexPositionColor(new Vector3(0, 1, 0), new Color(0, 0, 1)))
       .finalize();
 
     this.material = new BasicMaterial();

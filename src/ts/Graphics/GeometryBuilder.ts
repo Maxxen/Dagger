@@ -1,29 +1,17 @@
 import { Geometry } from "./Geometry";
 import { VertexBuffer } from "./VertexBuffer";
-import { VertexLayout, AttribType } from "./VertexLayout";
 import { IndexBuffer } from "./IndexBuffer";
+import { Vertex } from "./Vertex";
 
-export class GeometryBuilder {
+export class GeometryBuilder<V extends Vertex> {
   private indices: number[] = [];
-  private vertexData: number[] = [];
+  private vertices: V[] = [];
   private idx: number = 0;
 
-  constructor() {
-    this.vertexData;
-  }
+  constructor() {}
 
-  public add(
-    [x, y, z]: [number, number, number],
-    [r, g, b, a]: [number, number, number, number]
-  ) {
-    this.vertexData[this.idx * 7 + 0] = x;
-    this.vertexData[this.idx * 7 + 1] = y;
-    this.vertexData[this.idx * 7 + 2] = z;
-    this.vertexData[this.idx * 7 + 3] = r;
-    this.vertexData[this.idx * 7 + 4] = g;
-    this.vertexData[this.idx * 7 + 5] = b;
-    this.vertexData[this.idx * 7 + 6] = a;
-
+  public add(vertex: V) {
+    this.vertices[this.idx] = vertex;
     this.indices[this.idx] = this.idx;
     this.idx++;
 
@@ -31,26 +19,16 @@ export class GeometryBuilder {
   }
 
   finalize(): Geometry {
+    const layout = this.vertices[0].getLayout();
+    const buffer = new ArrayBuffer(this.vertices.length * layout.stride);
+
+    for (let i = 0; i < this.vertices.length; i++) {
+      this.vertices[i].pack(buffer, i * layout.stride);
+    }
+
     return new Geometry(
-      new VertexBuffer(
-        new VertexLayout(
-          { type: AttribType.FLOAT, count: 3 },
-          { type: AttribType.FLOAT, count: 4 }
-        ),
-        new Float32Array(this.vertexData)
-      ),
+      new VertexBuffer(layout, buffer),
       new IndexBuffer(new Uint16Array(this.indices))
     );
   }
 }
-/*
-class A<T extends number[][]> {
-  constructor(...a: T) {
-    console.log(a);
-  }
-}
-
-type vert = [[number, number, number], [number, number, number, number]];
-
-const a = new A<vert>([1, 2, 3], [1, 2, 3, 4]);
-*/

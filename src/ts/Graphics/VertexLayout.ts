@@ -22,8 +22,8 @@ export class VertexLayout {
   private _elements: AttribElement[] = [];
   public stride: number = 0;
 
-  public constructor(...elements: { type: AttribType; count: AttribCount }[]) {
-    elements.forEach(({ type, count }) => {
+  public constructor(...elements: [AttribType, AttribCount][]) {
+    elements.forEach(([type, count]) => {
       this.add(type, count);
     });
   }

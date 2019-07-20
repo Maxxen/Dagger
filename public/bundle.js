@@ -7851,6 +7851,45 @@ exports.Camera = Camera;
 
 /***/ }),
 
+/***/ "./src/ts/Graphics/Color.ts":
+/*!**********************************!*\
+  !*** ./src/ts/Graphics/Color.ts ***!
+  \**********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var Color = /** @class */ (function () {
+    function Color(r, g, b, a) {
+        if (r === void 0) { r = 1; }
+        if (g === void 0) { g = 1; }
+        if (b === void 0) { b = 1; }
+        if (a === void 0) { a = 1; }
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+    Color.prototype.pack = function (view, offset) {
+        view[offset] = this.r;
+        view[offset + 1] = this.g;
+        view[offset + 2] = this.b;
+        view[offset + 3] = this.a;
+    };
+    Color.Red = new Color(0, 1, 0, 1);
+    Color.Green = new Color(0, 1, 0, 1);
+    Color.Blue = new Color(0, 0, 1, 1);
+    Color.White = new Color(1, 1, 1, 1);
+    Color.Black = new Color(0, 0, 0, 1);
+    return Color;
+}());
+exports.Color = Color;
+
+
+/***/ }),
+
 /***/ "./src/ts/Graphics/Geometry.ts":
 /*!*************************************!*\
   !*** ./src/ts/Graphics/Geometry.ts ***!
@@ -7938,29 +7977,26 @@ exports.Geometry = Geometry;
 Object.defineProperty(exports, "__esModule", { value: true });
 var Geometry_1 = __webpack_require__(/*! ./Geometry */ "./src/ts/Graphics/Geometry.ts");
 var VertexBuffer_1 = __webpack_require__(/*! ./VertexBuffer */ "./src/ts/Graphics/VertexBuffer.ts");
-var VertexLayout_1 = __webpack_require__(/*! ./VertexLayout */ "./src/ts/Graphics/VertexLayout.ts");
 var IndexBuffer_1 = __webpack_require__(/*! ./IndexBuffer */ "./src/ts/Graphics/IndexBuffer.ts");
 var GeometryBuilder = /** @class */ (function () {
-    function GeometryBuilder(size) {
+    function GeometryBuilder() {
         this.indices = [];
+        this.vertices = [];
         this.idx = 0;
-        this.vertexData = new Float32Array(size);
     }
-    GeometryBuilder.prototype.addVertex = function (_a, _b) {
-        var x = _a[0], y = _a[1], z = _a[2];
-        var r = _b[0], g = _b[1], b = _b[2], a = _b[3];
-        this.vertexData[this.idx * 7 + 0] = x;
-        this.vertexData[this.idx * 7 + 1] = y;
-        this.vertexData[this.idx * 7 + 2] = z;
-        this.vertexData[this.idx * 7 + 3] = r;
-        this.vertexData[this.idx * 7 + 4] = g;
-        this.vertexData[this.idx * 7 + 5] = b;
-        this.vertexData[this.idx * 7 + 6] = a;
+    GeometryBuilder.prototype.add = function (vertex) {
+        this.vertices[this.idx] = vertex;
         this.indices[this.idx] = this.idx;
         this.idx++;
+        return this;
     };
     GeometryBuilder.prototype.finalize = function () {
-        return new Geometry_1.Geometry(new VertexBuffer_1.VertexBuffer(new VertexLayout_1.VertexLayout({ type: VertexLayout_1.AttribType.FLOAT, count: 3 }, { type: VertexLayout_1.AttribType.FLOAT, count: 4 }), this.vertexData), new IndexBuffer_1.IndexBuffer(new Uint16Array(this.indices)));
+        var layout = this.vertices[0].getLayout();
+        var buffer = new ArrayBuffer(this.vertices.length * layout.stride);
+        for (var i = 0; i < this.vertices.length; i++) {
+            this.vertices[i].pack(buffer, i * layout.stride);
+        }
+        return new Geometry_1.Geometry(new VertexBuffer_1.VertexBuffer(layout, buffer), new IndexBuffer_1.IndexBuffer(new Uint16Array(this.indices)));
     };
     return GeometryBuilder;
 }());
@@ -8066,7 +8102,7 @@ var BasicMaterial = /** @class */ (function (_super) {
     };
     BasicMaterial.prototype.perMesh = function (mesh) {
         this.shader.setMat4("M", mesh.model);
-        Game_1.gl.drawElements(Game_1.gl.TRIANGLES, mesh.geometry.indexCount - 1, Game_1.gl.UNSIGNED_SHORT, 0);
+        Game_1.gl.drawElements(Game_1.gl.TRIANGLES, mesh.geometry.indexCount, Game_1.gl.UNSIGNED_SHORT, 0);
     };
     return BasicMaterial;
 }(Material));
@@ -8181,6 +8217,65 @@ exports.Shader = Shader;
 
 /***/ }),
 
+/***/ "./src/ts/Graphics/Vector3.ts":
+/*!************************************!*\
+  !*** ./src/ts/Graphics/Vector3.ts ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var Vector3 = /** @class */ (function () {
+    function Vector3(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+    Vector3.prototype.pack = function (view, offset) {
+        view[offset] = this.x;
+        view[offset + 1] = this.y;
+        view[offset + 2] = this.z;
+    };
+    return Vector3;
+}());
+exports.Vector3 = Vector3;
+
+
+/***/ }),
+
+/***/ "./src/ts/Graphics/Vertex.ts":
+/*!***********************************!*\
+  !*** ./src/ts/Graphics/Vertex.ts ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var VertexLayout_1 = __webpack_require__(/*! ./VertexLayout */ "./src/ts/Graphics/VertexLayout.ts");
+var VertexPositionColor = /** @class */ (function () {
+    function VertexPositionColor(position, color) {
+        this.position = position;
+        this.color = color;
+    }
+    VertexPositionColor.prototype.getLayout = function () {
+        return VertexPositionColor.layout;
+    };
+    VertexPositionColor.prototype.pack = function (buffer, offset) {
+        this.position.pack(new Float32Array(buffer), offset / 4);
+        this.color.pack(new Uint8Array(buffer), offset + 12);
+    };
+    VertexPositionColor.layout = new VertexLayout_1.VertexLayout([VertexLayout_1.AttribType.FLOAT, 3], [VertexLayout_1.AttribType.UNSIGNED_BYTE, 4]);
+    return VertexPositionColor;
+}());
+exports.VertexPositionColor = VertexPositionColor;
+
+
+/***/ }),
+
 /***/ "./src/ts/Graphics/VertexBuffer.ts":
 /*!*****************************************!*\
   !*** ./src/ts/Graphics/VertexBuffer.ts ***!
@@ -8202,7 +8297,7 @@ var VertexBuffer = /** @class */ (function () {
         }
     }
     VertexBuffer.prototype.setData = function (vertices) {
-        this._count = vertices.length / this.layout.elements.length;
+        this._count = vertices.byteLength / this.layout.stride;
         Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, this.id);
         Game_1.gl.bufferData(Game_1.gl.ARRAY_BUFFER, vertices, Game_1.gl.STATIC_DRAW);
         Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, null);
@@ -8260,7 +8355,7 @@ var VertexLayout = /** @class */ (function () {
         this._elements = [];
         this.stride = 0;
         elements.forEach(function (_a) {
-            var type = _a.type, count = _a.count;
+            var type = _a[0], count = _a[1];
             _this.add(type, count);
         });
     }
@@ -8340,64 +8435,25 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Game_1 = __webpack_require__(/*! ./Game */ "./src/ts/Game.ts");
-//import { VertexLayout, AttribType } from "./Graphics/VertexLayout";
 var Camera_1 = __webpack_require__(/*! ./Graphics/Camera */ "./src/ts/Graphics/Camera.ts");
 var Mesh_1 = __webpack_require__(/*! ./Graphics/Mesh */ "./src/ts/Graphics/Mesh.ts");
-//import { Geometry } from "./Graphics/Geometry";
-//import { VertexBuffer } from "./Graphics/VertexBuffer";
 var Material_1 = __webpack_require__(/*! ./Graphics/Material */ "./src/ts/Graphics/Material.ts");
-//import { IndexBuffer } from "./Graphics/IndexBuffer";
 var GeometryBuilder_1 = __webpack_require__(/*! ./Graphics/GeometryBuilder */ "./src/ts/Graphics/GeometryBuilder.ts");
+var Vertex_1 = __webpack_require__(/*! ./Graphics/Vertex */ "./src/ts/Graphics/Vertex.ts");
+var Vector3_1 = __webpack_require__(/*! ./Graphics/Vector3 */ "./src/ts/Graphics/Vector3.ts");
+var Color_1 = __webpack_require__(/*! ./Graphics/Color */ "./src/ts/Graphics/Color.ts");
 var MyGame = /** @class */ (function (_super) {
     __extends(MyGame, _super);
     function MyGame() {
         var _this = _super.call(this) || this;
-        // Create VAO
-        /*
-        const data = new Float32Array([
-          -1.0,
-          -1.0,
-          0.0,
-          1,
-          0,
-          0,
-          1,
-          1.0,
-          -1.0,
-          0.0,
-          0,
-          1,
-          0,
-          1,
-          0.0,
-          1.0,
-          0.0,
-          0,
-          0,
-          1,
-          1
-        ]);
-    
-        const indices = new Uint16Array([0, 1, 2, 0, 2, 3]);
-    
-        // Create vertex layout
-        const layout = new VertexLayout(
-          { type: AttribType.FLOAT, count: 3 },
-          { type: AttribType.FLOAT, count: 4 }
-        );
-    
-        const geometry = new Geometry(
-          new VertexBuffer(layout, data),
-          new IndexBuffer(indices)
-        );
-          */
-        var builder = new GeometryBuilder_1.GeometryBuilder(3);
-        builder.addVertex([-1, -1, 0], [1, 0, 0, 1]);
-        builder.addVertex([1, -1, 0], [0, 1, 0, 1]);
-        builder.addVertex([0, 1, 0], [0, 0, 1, 1]);
-        var g = builder.finalize();
+        var builder = new GeometryBuilder_1.GeometryBuilder();
+        var geometry = builder
+            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(-1, -1, 0), new Color_1.Color(1, 0, 0)))
+            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(1, -1, 0), new Color_1.Color(0, 1, 0)))
+            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(0, 1, 0), new Color_1.Color(0, 0, 1)))
+            .finalize();
         _this.material = new Material_1.BasicMaterial();
-        _this.mesh = new Mesh_1.Mesh(g, _this.material);
+        _this.mesh = new Mesh_1.Mesh(geometry, _this.material);
         // Create Camera
         _this.camera = new Camera_1.Camera([-1, 0, -3]);
         return _this;
