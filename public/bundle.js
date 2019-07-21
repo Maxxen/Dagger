@@ -7725,42 +7725,27 @@ var forEach = function () {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-function initGL() {
-    var canvas = document.querySelector("#glCanvas");
-    // Initialize the GL context
-    var ctx = canvas.getContext("webgl");
-    // Only continue if WebGL is available and working
-    if (ctx === null) {
-        alert("Unable to initialize WebGL. Your browser or machine may not support it.");
-        return;
-    }
-    var ext = ctx.getExtension("OES_vertex_array_object");
-    if (ext === null) {
-        alert("OES Vertex array object extension not supported!");
-        return;
-    }
-    exports.gl = ctx;
-    exports.glext = ext;
-}
-exports.initGL = initGL;
+var Loader_1 = __webpack_require__(/*! ./Graphics/Loader */ "./src/ts/Graphics/Loader.ts");
+var gl_1 = __webpack_require__(/*! ./Graphics/gl */ "./src/ts/Graphics/gl.ts");
 var Game = /** @class */ (function () {
     function Game() {
         this.deltaTime = 0;
         this.lastTimestamp = 0;
         this.maxFPS = 60;
         this.timestep = 1000 / 60;
-        initGL();
+        this.loader = new Loader_1.Loader();
+        gl_1.initGL();
     }
     Game.prototype.start = function () {
         this.setup();
         this.init();
-        this.load();
+        this.load(this.loader);
         requestAnimationFrame(this.loop.bind(this));
     };
     Game.prototype.setup = function () {
         // Enable depth testing
-        exports.gl.enable(exports.gl.DEPTH_TEST);
-        exports.gl.depthFunc(exports.gl.LESS);
+        gl_1.gl.enable(gl_1.gl.DEPTH_TEST);
+        gl_1.gl.depthFunc(gl_1.gl.LESS);
     };
     // TODO: Proper time class and constructs.
     Game.prototype.loop = function (timestamp) {
@@ -7781,8 +7766,8 @@ var Game = /** @class */ (function () {
     };
     Game.prototype.clear = function () {
         // Clear screen
-        exports.gl.clearColor(0, 0, 0.4, 1);
-        exports.gl.clear(exports.gl.COLOR_BUFFER_BIT | exports.gl.DEPTH_BUFFER_BIT);
+        gl_1.gl.clearColor(0, 0, 0.4, 1);
+        gl_1.gl.clear(gl_1.gl.COLOR_BUFFER_BIT | gl_1.gl.DEPTH_BUFFER_BIT);
     };
     return Game;
 }());
@@ -7801,7 +7786,7 @@ exports.Game = Game;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
+var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
 var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
 var Camera = /** @class */ (function () {
     function Camera(position) {
@@ -7812,7 +7797,7 @@ var Camera = /** @class */ (function () {
         this.projectionMatrix = gl_matrix_1.mat4.create();
         this.viewMatrix = gl_matrix_1.mat4.create();
         this._position = position;
-        this.aspect = Game_1.gl.canvas.clientWidth / Game_1.gl.canvas.clientHeight;
+        this.aspect = gl_1.gl.canvas.clientWidth / gl_1.gl.canvas.clientHeight;
         this.updateMatrices();
     }
     Camera.prototype.updateMatrices = function () {
@@ -7884,7 +7869,7 @@ var Color = /** @class */ (function () {
         view[offset + 2] = this.b;
         view[offset + 3] = this.a;
     };
-    Color.Red = new Color(0, 1, 0, 1);
+    Color.Red = new Color(1, 0, 0, 1);
     Color.Green = new Color(0, 1, 0, 1);
     Color.Blue = new Color(0, 0, 1, 1);
     Color.White = new Color(1, 1, 1, 1);
@@ -7906,14 +7891,14 @@ exports.Color = Color;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
+var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
 var Geometry = /** @class */ (function () {
     function Geometry(vertexBuffer, indexBuffer) {
         this.vertexBuffer = null;
         this.indexBuffer = null;
         this._vertexCount = 0;
         this._indexCount = 0;
-        this.id = Game_1.glext.createVertexArrayOES();
+        this.id = gl_1.glext.createVertexArrayOES();
         if (indexBuffer) {
             this.setIndexBuffer(indexBuffer);
         }
@@ -7922,10 +7907,10 @@ var Geometry = /** @class */ (function () {
         }
     }
     Geometry.prototype.bind = function () {
-        Game_1.glext.bindVertexArrayOES(this.id);
+        gl_1.glext.bindVertexArrayOES(this.id);
     };
     Geometry.prototype.unbind = function () {
-        Game_1.glext.bindVertexArrayOES(null);
+        gl_1.glext.bindVertexArrayOES(null);
     };
     Geometry.prototype.setIndexBuffer = function (indexBuffer) {
         this.indexBuffer = indexBuffer;
@@ -7941,10 +7926,10 @@ var Geometry = /** @class */ (function () {
         var offset = 0;
         for (var i = 0; i < vertexBuffer.layout.elements.length; i++) {
             var elem = vertexBuffer.layout.elements[i];
-            Game_1.gl.enableVertexAttribArray(i);
+            gl_1.gl.enableVertexAttribArray(i);
             // This is really confusing, gl.vertexAttribPointer takes (index, SIZE, ...)
             // size in this case is NOT the size of the elements, but instead the number of components
-            Game_1.gl.vertexAttribPointer(i, elem.count, elem.type, elem.normalized, vertexBuffer.layout.stride, offset);
+            gl_1.gl.vertexAttribPointer(i, elem.count, elem.type, elem.normalized, vertexBuffer.layout.stride, offset);
             offset += elem.count * elem.size;
         }
         this.unbind();
@@ -8021,29 +8006,29 @@ exports.GeometryBuilder = GeometryBuilder;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
+var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
 var IndexBuffer = /** @class */ (function () {
     function IndexBuffer(indices) {
         this._count = 0;
-        this.id = Game_1.gl.createBuffer();
+        this.id = gl_1.gl.createBuffer();
         if (indices) {
             this.setData(indices);
         }
     }
     IndexBuffer.prototype.setData = function (indices) {
         this._count = indices.length;
-        Game_1.gl.bindBuffer(Game_1.gl.ELEMENT_ARRAY_BUFFER, this.id);
-        Game_1.gl.bufferData(Game_1.gl.ELEMENT_ARRAY_BUFFER, indices, Game_1.gl.STATIC_DRAW);
-        Game_1.gl.bindBuffer(Game_1.gl.ELEMENT_ARRAY_BUFFER, null);
+        gl_1.gl.bindBuffer(gl_1.gl.ELEMENT_ARRAY_BUFFER, this.id);
+        gl_1.gl.bufferData(gl_1.gl.ELEMENT_ARRAY_BUFFER, indices, gl_1.gl.STATIC_DRAW);
+        gl_1.gl.bindBuffer(gl_1.gl.ELEMENT_ARRAY_BUFFER, null);
     };
     IndexBuffer.prototype.bind = function () {
-        Game_1.gl.bindBuffer(Game_1.gl.ELEMENT_ARRAY_BUFFER, this.id);
+        gl_1.gl.bindBuffer(gl_1.gl.ELEMENT_ARRAY_BUFFER, this.id);
     };
     IndexBuffer.prototype.unbind = function () {
-        Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, null);
+        gl_1.gl.bindBuffer(gl_1.gl.ARRAY_BUFFER, null);
     };
     IndexBuffer.prototype.dispose = function () {
-        Game_1.gl.deleteBuffer(this.id);
+        gl_1.gl.deleteBuffer(this.id);
     };
     Object.defineProperty(IndexBuffer.prototype, "count", {
         get: function () {
@@ -8055,6 +8040,75 @@ var IndexBuffer = /** @class */ (function () {
     return IndexBuffer;
 }());
 exports.IndexBuffer = IndexBuffer;
+
+
+/***/ }),
+
+/***/ "./src/ts/Graphics/Loader.ts":
+/*!***********************************!*\
+  !*** ./src/ts/Graphics/Loader.ts ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var Texture2D_1 = __webpack_require__(/*! ./Texture2D */ "./src/ts/Graphics/Texture2D.ts");
+var Loader = /** @class */ (function () {
+    function Loader() {
+        this.cache = {};
+        this.batch = [];
+    }
+    Loader.prototype.loadTexture = function (name, url, mipmap, wrapmode, filtermode, onLoad) {
+        var _this = this;
+        if (this.cache[name] == null) {
+            var image_1 = new Image();
+            image_1.onload = function () {
+                var tex = new Texture2D_1.Texture2D(image_1, mipmap, wrapmode, filtermode);
+                _this.cache[name] = tex;
+                onLoad(tex);
+            };
+            image_1.src = url;
+        }
+        else {
+            onLoad(this.cache[name]);
+        }
+    };
+    Loader.prototype.add = function (name, url, mipmap, wrapmode, filtermode) {
+        if (mipmap === void 0) { mipmap = false; }
+        if (wrapmode === void 0) { wrapmode = Texture2D_1.TextureWrap.CLAMP_EDGE; }
+        if (filtermode === void 0) { filtermode = Texture2D_1.TextureFilter.LINEAR; }
+        this.batch.push([name, url, mipmap, wrapmode, filtermode]);
+        return this;
+    };
+    Loader.prototype.load = function (onLoad) {
+        var _this = this;
+        var textures = {};
+        var loaded = 0;
+        var toLoad = this.batch.length;
+        this.batch.forEach(function (_a) {
+            var name = _a[0], url = _a[1], mipmap = _a[2], wrapmode = _a[3], filtermode = _a[4];
+            _this.loadTexture(name, url, mipmap, wrapmode, filtermode, function (tex) {
+                textures[name] = tex;
+                loaded++;
+                if (loaded == toLoad) {
+                    _this.batch = [];
+                    onLoad(textures);
+                }
+            });
+        });
+        return this;
+    };
+    Loader.prototype.isLoaded = function (name) {
+        return name in this.cache;
+    };
+    Loader.prototype.getLoaded = function (name) {
+        return this.cache[name];
+    };
+    return Loader;
+}());
+exports.Loader = Loader;
 
 
 /***/ }),
@@ -8145,7 +8199,8 @@ class Scene {
       for (let m in this.meshes) {
         const mesh = this.meshes[m];
         if (mesh.material.name == material.name) {
-          material.perMesh(mesh);
+          material.perMesh(mesh)
+          mesh.bind();
           gl.drawElements(
             gl.TRIANGLES,
             mesh.geometry.indexCount,
@@ -8172,12 +8227,10 @@ class Scene {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
 var Mesh = /** @class */ (function () {
     function Mesh(geometry, material) {
         this.geometry = geometry;
         this.material = material;
-        this.model = gl_matrix_1.mat4.create();
     }
     Mesh.prototype.bind = function () {
         this.geometry.bind();
@@ -8199,12 +8252,12 @@ exports.Mesh = Mesh;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
+var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
 var Shader = /** @class */ (function () {
     function Shader(vSource, fSource) {
         // Compile shaders
-        var vert = this.compileShader(vSource, Game_1.gl.VERTEX_SHADER);
-        var frag = this.compileShader(fSource, Game_1.gl.FRAGMENT_SHADER);
+        var vert = this.compileShader(vSource, gl_1.gl.VERTEX_SHADER);
+        var frag = this.compileShader(fSource, gl_1.gl.FRAGMENT_SHADER);
         // Create program
         this.program = this.createShaderProgram(vert, frag);
         // Cache uniform locations
@@ -8212,57 +8265,139 @@ var Shader = /** @class */ (function () {
         this.uniformLocations = this.getUniformLocations();
     }
     Shader.prototype.compileShader = function (source, type) {
-        var shaderID = Game_1.gl.createShader(type);
-        Game_1.gl.shaderSource(shaderID, source);
+        var shaderID = gl_1.gl.createShader(type);
+        gl_1.gl.shaderSource(shaderID, source);
         console.log("Compiling shader " + source);
-        Game_1.gl.compileShader(shaderID);
-        if (!Game_1.gl.getShaderParameter(shaderID, Game_1.gl.COMPILE_STATUS)) {
-            alert("Error compiling shader " + Game_1.gl.getShaderInfoLog(shaderID));
-            Game_1.gl.deleteShader(shaderID);
+        gl_1.gl.compileShader(shaderID);
+        if (!gl_1.gl.getShaderParameter(shaderID, gl_1.gl.COMPILE_STATUS)) {
+            alert("Error compiling shader " + gl_1.gl.getShaderInfoLog(shaderID));
+            gl_1.gl.deleteShader(shaderID);
             return null;
         }
         return shaderID;
     };
     Shader.prototype.createShaderProgram = function (vert, frag) {
-        var programID = Game_1.gl.createProgram();
-        Game_1.gl.attachShader(programID, vert);
-        Game_1.gl.attachShader(programID, frag);
-        Game_1.gl.linkProgram(programID);
-        if (!Game_1.gl.getProgramParameter(programID, Game_1.gl.LINK_STATUS)) {
-            alert("Error linking program " + Game_1.gl.getProgramInfoLog(programID));
-            Game_1.gl.deleteProgram(programID);
+        var programID = gl_1.gl.createProgram();
+        gl_1.gl.attachShader(programID, vert);
+        gl_1.gl.attachShader(programID, frag);
+        gl_1.gl.linkProgram(programID);
+        if (!gl_1.gl.getProgramParameter(programID, gl_1.gl.LINK_STATUS)) {
+            alert("Error linking program " + gl_1.gl.getProgramInfoLog(programID));
+            gl_1.gl.deleteProgram(programID);
             return null;
         }
-        Game_1.gl.detachShader(programID, vert);
-        Game_1.gl.detachShader(programID, frag);
-        Game_1.gl.deleteShader(vert);
-        Game_1.gl.deleteShader(frag);
+        gl_1.gl.detachShader(programID, vert);
+        gl_1.gl.detachShader(programID, frag);
+        gl_1.gl.deleteShader(vert);
+        gl_1.gl.deleteShader(frag);
         return programID;
     };
     Shader.prototype.use = function () {
-        Game_1.gl.useProgram(this.program);
+        gl_1.gl.useProgram(this.program);
     };
     Shader.prototype.getUniformCount = function () {
-        return Game_1.gl.getProgramParameter(this.program, Game_1.gl.ACTIVE_UNIFORMS);
+        return gl_1.gl.getProgramParameter(this.program, gl_1.gl.ACTIVE_UNIFORMS);
     };
     Shader.prototype.getUniformLocations = function () {
         var locations = {};
         var count = this.getUniformCount();
         for (var i = 0; i < count; i++) {
-            var info = Game_1.gl.getActiveUniform(this.program, i);
-            locations[info.name] = Game_1.gl.getUniformLocation(this.program, info.name);
+            var info = gl_1.gl.getActiveUniform(this.program, i);
+            locations[info.name] = gl_1.gl.getUniformLocation(this.program, info.name);
         }
         return locations;
     };
     Shader.prototype.setMat4 = function (name, value) {
-        Game_1.gl.uniformMatrix4fv(this.uniformLocations[name], false, value);
+        gl_1.gl.uniformMatrix4fv(this.uniformLocations[name], false, value);
     };
     Shader.prototype.setFloat = function (name, value) {
-        Game_1.gl.uniform1f(this.uniformLocations[name], value);
+        gl_1.gl.uniform1f(this.uniformLocations[name], value);
     };
     return Shader;
 }());
 exports.Shader = Shader;
+
+
+/***/ }),
+
+/***/ "./src/ts/Graphics/Texture2D.ts":
+/*!**************************************!*\
+  !*** ./src/ts/Graphics/Texture2D.ts ***!
+  \**************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
+var TextureFilter;
+(function (TextureFilter) {
+    TextureFilter[TextureFilter["LINEAR"] = gl_1.gl.LINEAR] = "LINEAR";
+    TextureFilter[TextureFilter["NEAREST"] = gl_1.gl.NEAREST] = "NEAREST";
+    TextureFilter[TextureFilter["NEAREST_MIPMAP_NEAREST"] = gl_1.gl.NEAREST_MIPMAP_NEAREST] = "NEAREST_MIPMAP_NEAREST";
+    TextureFilter[TextureFilter["LINEAR_MIPMAP_NEAREST"] = gl_1.gl.LINEAR_MIPMAP_NEAREST] = "LINEAR_MIPMAP_NEAREST";
+    TextureFilter[TextureFilter["NEAREST_MIPMAP_LINEAR"] = gl_1.gl.NEAREST_MIPMAP_LINEAR] = "NEAREST_MIPMAP_LINEAR";
+    TextureFilter[TextureFilter["LINEAR_MIPMAP_LINEAR"] = gl_1.gl.LINEAR_MIPMAP_LINEAR] = "LINEAR_MIPMAP_LINEAR";
+})(TextureFilter = exports.TextureFilter || (exports.TextureFilter = {}));
+var TextureWrap;
+(function (TextureWrap) {
+    TextureWrap[TextureWrap["REPEAT"] = gl_1.gl.REPEAT] = "REPEAT";
+    TextureWrap[TextureWrap["MIRRORED_REPEAT"] = gl_1.gl.MIRRORED_REPEAT] = "MIRRORED_REPEAT";
+    TextureWrap[TextureWrap["CLAMP_EDGE"] = gl_1.gl.CLAMP_TO_EDGE] = "CLAMP_EDGE";
+})(TextureWrap = exports.TextureWrap || (exports.TextureWrap = {}));
+var TexturePixelFormat;
+(function (TexturePixelFormat) {
+    TexturePixelFormat[TexturePixelFormat["RGBA"] = gl_1.gl.RGBA] = "RGBA";
+})(TexturePixelFormat = exports.TexturePixelFormat || (exports.TexturePixelFormat = {}));
+var TexturePixelType;
+(function (TexturePixelType) {
+    TexturePixelType[TexturePixelType["UBYTE"] = gl_1.gl.UNSIGNED_BYTE] = "UBYTE";
+})(TexturePixelType = exports.TexturePixelType || (exports.TexturePixelType = {}));
+var Texture2D = /** @class */ (function () {
+    function Texture2D(image, mipmap, wrapMode, filterMode, internalFormat, srcFormat, srcType) {
+        if (mipmap === void 0) { mipmap = true; }
+        if (wrapMode === void 0) { wrapMode = TextureWrap.CLAMP_EDGE; }
+        if (filterMode === void 0) { filterMode = TextureFilter.LINEAR; }
+        if (internalFormat === void 0) { internalFormat = TexturePixelFormat.RGBA; }
+        if (srcFormat === void 0) { srcFormat = TexturePixelFormat.RGBA; }
+        if (srcType === void 0) { srcType = gl_1.gl.UNSIGNED_BYTE; }
+        this.wrapMode = wrapMode;
+        this.filterMode = filterMode;
+        this.internalFormat = internalFormat;
+        this.srcFormat = srcFormat;
+        this.srcType = srcType;
+        this.textureID = gl_1.gl.createTexture();
+        gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
+        gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, this.srcFormat, this.srcType, image);
+        if (mipmap) {
+            if (this.isPowerOf2(image.width) && this.isPowerOf2(image.height)) {
+                gl_1.gl.generateMipmap(gl_1.gl.TEXTURE_2D);
+            }
+            else {
+                console.log("WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
+                    image.src +
+                    " )");
+            }
+        }
+        gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_WRAP_S, this.wrapMode);
+        gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_WRAP_T, this.wrapMode);
+        gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_MIN_FILTER, this.filterMode);
+        gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_MAG_FILTER, this.filterMode);
+    }
+    Texture2D.prototype.generateDefault = function () {
+        gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
+        gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, gl_1.gl.RGBA, 1, 1, 0, gl_1.gl.RGBA, gl_1.gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+    };
+    Texture2D.prototype.isPowerOf2 = function (number) {
+        return (number & (number - 1)) === 0;
+    };
+    Texture2D.prototype.bind = function () {
+        gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
+    };
+    return Texture2D;
+}());
+exports.Texture2D = Texture2D;
 
 
 /***/ }),
@@ -8354,11 +8489,11 @@ exports.VertexPositionColorUV = VertexPositionColorUV;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
+var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
 var VertexBuffer = /** @class */ (function () {
     function VertexBuffer(layout, vertices) {
         this._count = 0;
-        this.id = Game_1.gl.createBuffer();
+        this.id = gl_1.gl.createBuffer();
         this.layout = layout;
         if (vertices) {
             this.setData(vertices);
@@ -8366,18 +8501,18 @@ var VertexBuffer = /** @class */ (function () {
     }
     VertexBuffer.prototype.setData = function (vertices) {
         this._count = vertices.byteLength / this.layout.stride;
-        Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, this.id);
-        Game_1.gl.bufferData(Game_1.gl.ARRAY_BUFFER, vertices, Game_1.gl.STATIC_DRAW);
-        Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, null);
+        gl_1.gl.bindBuffer(gl_1.gl.ARRAY_BUFFER, this.id);
+        gl_1.gl.bufferData(gl_1.gl.ARRAY_BUFFER, vertices, gl_1.gl.STATIC_DRAW);
+        gl_1.gl.bindBuffer(gl_1.gl.ARRAY_BUFFER, null);
     };
     VertexBuffer.prototype.bind = function () {
-        Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, this.id);
+        gl_1.gl.bindBuffer(gl_1.gl.ARRAY_BUFFER, this.id);
     };
     VertexBuffer.prototype.unbind = function () {
-        Game_1.gl.bindBuffer(Game_1.gl.ARRAY_BUFFER, null);
+        gl_1.gl.bindBuffer(gl_1.gl.ARRAY_BUFFER, null);
     };
     VertexBuffer.prototype.dispose = function () {
-        Game_1.gl.deleteBuffer(this.id);
+        gl_1.gl.deleteBuffer(this.id);
     };
     Object.defineProperty(VertexBuffer.prototype, "count", {
         get: function () {
@@ -8479,6 +8614,38 @@ exports.VertexLayout = VertexLayout;
 
 /***/ }),
 
+/***/ "./src/ts/Graphics/gl.ts":
+/*!*******************************!*\
+  !*** ./src/ts/Graphics/gl.ts ***!
+  \*******************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+function initGL() {
+    var canvas = document.querySelector("#glCanvas");
+    // Initialize the GL context
+    var ctx = canvas.getContext("webgl");
+    // Only continue if WebGL is available and working
+    if (ctx === null) {
+        alert("Unable to initialize WebGL. Your browser or machine may not support it.");
+        return;
+    }
+    var ext = ctx.getExtension("OES_vertex_array_object");
+    if (ext === null) {
+        alert("OES Vertex array object extension not supported!");
+        return;
+    }
+    exports.gl = ctx;
+    exports.glext = ext;
+}
+exports.initGL = initGL;
+
+
+/***/ }),
+
 /***/ "./src/ts/MyGame.ts":
 /*!**************************!*\
   !*** ./src/ts/MyGame.ts ***!
@@ -8503,6 +8670,7 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Game_1 = __webpack_require__(/*! ./Game */ "./src/ts/Game.ts");
+var gl_1 = __webpack_require__(/*! ./Graphics/gl */ "./src/ts/Graphics/gl.ts");
 var Camera_1 = __webpack_require__(/*! ./Graphics/Camera */ "./src/ts/Graphics/Camera.ts");
 var Mesh_1 = __webpack_require__(/*! ./Graphics/Mesh */ "./src/ts/Graphics/Mesh.ts");
 var Material_1 = __webpack_require__(/*! ./Graphics/Material */ "./src/ts/Graphics/Material.ts");
@@ -8520,13 +8688,19 @@ var MyGame = /** @class */ (function (_super) {
             .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(1, -1, 0), Color_1.Color.Green))
             .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.Blue))
             .finalize();
-        _this.material = new Material_1.BasicMaterial();
-        _this.mesh = new Mesh_1.Mesh(geometry, _this.material.getInstance());
+        var material = new Material_1.BasicMaterial();
+        var mesh = new Mesh_1.Mesh(geometry, material.getInstance());
+        _this.material = material;
+        _this.mesh = mesh;
         // Create Camera
         _this.camera = new Camera_1.Camera([-1, 0, -3]);
         return _this;
     }
-    MyGame.prototype.load = function () { };
+    MyGame.prototype.load = function (loader) {
+        loader.add("tex1", "./assets/test.png").load(function (textures) {
+            console.log("loaded a texture!" + textures["tex1"]);
+        });
+    };
     MyGame.prototype.init = function () { };
     MyGame.prototype.update = function (deltaTime) {
         this.camera.position = [
@@ -8538,7 +8712,9 @@ var MyGame = /** @class */ (function (_super) {
     MyGame.prototype.draw = function () {
         this.material.use();
         this.material.perPass(this.camera);
-        this.material.perMesh(this.mesh.material);
+        this.material.perMesh(this.mesh.material.data);
+        this.mesh.bind();
+        gl_1.gl.drawElements(gl_1.gl.TRIANGLES, this.mesh.geometry.indexCount, gl_1.gl.UNSIGNED_SHORT, 0);
     };
     return MyGame;
 }(Game_1.Game));

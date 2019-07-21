@@ -1,8 +1,9 @@
-import { Shader } from "./Shader";
-import { Camera } from "./Camera";
+import { Shader } from "../Shader";
+import { Camera } from "../Camera";
 import { mat4 } from "gl-matrix";
+import { Texture2D } from "../Texture2D";
 
-export type MaterialParams = { [key: string]: number | mat4 };
+export type MaterialParams = { [key: string]: number | mat4 | Texture2D };
 
 export class MaterialInstance<T extends MaterialParams = {}> {
   constructor(public readonly name: string, public data: T) {}
@@ -28,51 +29,6 @@ export abstract class Material<T extends MaterialParams = {}> {
   public abstract perMesh(data: T): void;
 }
 
-const vsSource = `
-        attribute vec4 a_position;
-        attribute vec4 a_color;
-
-        uniform mat4 M;
-        uniform mat4 V;
-        uniform mat4 P;
-
-        varying vec4 v_color;
-
-        void main() {
-          gl_Position = P * V * M * a_position;
-          v_color = a_color;
-        }
-      `;
-const fsSource = `
-        precision mediump float;
-
-        varying vec4 v_color;
-
-        void main() {
-          gl_FragColor = v_color;
-        }
-      `;
-
-export interface BasicMaterialParams {
-  [key: string]: mat4;
-  model: mat4;
-}
-export class BasicMaterial extends Material<BasicMaterialParams> {
-  constructor() {
-    super("BasicMaterial", new Shader(vsSource, fsSource), {
-      model: mat4.create()
-    });
-  }
-
-  perPass(camera: Camera) {
-    this.shader.setMat4("V", camera.view);
-    this.shader.setMat4("P", camera.projection);
-  }
-
-  perMesh(data: BasicMaterialParams): void {
-    this.shader.setMat4("M", data.model);
-  }
-}
 /*
 class Scene {
   mats: { [key: string]: Material } = {};

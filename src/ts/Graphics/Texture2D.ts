@@ -1,4 +1,4 @@
-import { gl } from "../Game";
+import { gl } from "./gl";
 
 export enum TextureFilter {
   LINEAR = gl.LINEAR,
@@ -15,6 +15,14 @@ export enum TextureWrap {
   CLAMP_EDGE = gl.CLAMP_TO_EDGE
 }
 
+export enum TexturePixelFormat {
+  RGBA = gl.RGBA
+}
+
+export enum TexturePixelType {
+  UBYTE = gl.UNSIGNED_BYTE
+}
+
 export class Texture2D {
   private textureID: WebGLTexture;
 
@@ -25,13 +33,13 @@ export class Texture2D {
   public readonly srcType: number;
 
   constructor(
-    url: string,
-    mipmap: boolean,
-    wrapMode: TextureWrap,
-    filterMode: TextureFilter,
-    internalFormat: number = gl.RGBA,
-    srcFormat: number = gl.RGBA,
-    srcType: number = gl.UNSIGNED_BYTE
+    source: HTMLImageElement | Uint8Array,
+    mipmap: boolean = true,
+    wrapMode: TextureWrap = TextureWrap.CLAMP_EDGE,
+    filterMode: TextureFilter = TextureFilter.LINEAR,
+    internalFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
+    srcFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
+    srcType: TexturePixelType = gl.UNSIGNED_BYTE
   ) {
     this.wrapMode = wrapMode;
     this.filterMode = filterMode;
@@ -41,57 +49,57 @@ export class Texture2D {
 
     this.textureID = gl.createTexture()!;
 
-    // Generate a default blue pixel image to use before texture is loaded
-    this.generateDefault();
-    this.loadImage(url, mipmap);
-  }
-
-  private generateDefault() {
     gl.bindTexture(gl.TEXTURE_2D, this.textureID);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      1,
-      1,
-      0,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      new Uint8Array([0, 0, 255, 255])
-    );
-  }
 
-  private loadImage(url: string, mipmap: boolean) {
-    const image = new Image();
-    image.onload = () => {
-      gl.bindTexture(gl.TEXTURE_2D, this.textureID);
+    if (this.sourceIsImage(source)) {
       gl.texImage2D(
         gl.TEXTURE_2D,
         0,
         this.internalFormat,
         this.srcFormat,
         this.srcType,
-        image
+        source
       );
 
       if (mipmap) {
-        if (this.isPowerOf2(image.width) && this.isPowerOf2(image.height)) {
+        if (this.isPowerOf2(source.width) && this.isPowerOf2(source.height)) {
           gl.generateMipmap(gl.TEXTURE_2D);
         } else {
           console.log(
             "WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
-              url +
+              source.src +
               " )"
           );
         }
       }
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, this.wrapMode);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, this.wrapMode);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.filterMode);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.filterMode);
-    };
+    } else {
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        this.internalFormat,
+        1,
+        1,
+        0,
+        this.srcFormat,
+        this.srcType,
+        source
+      );
+    }
 
-    image.src = url;
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, this.wrapMode);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, this.wrapMode);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, this.filterMode);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.filterMode);
+  }
+
+  private sourceIsImage(
+    source: Uint8Array | HTMLImageElement
+  ): source is HTMLImageElement {
+    return (source as HTMLImageElement).width !== undefined;
+  }
+
+  public static generateDefault() {
+    return new Texture2D(new Uint8Array([0, 0, 255, 255]));
   }
 
   private isPowerOf2(number: number) {

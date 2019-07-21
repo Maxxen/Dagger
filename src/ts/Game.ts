@@ -1,43 +1,22 @@
-export declare var gl: WebGLRenderingContext;
-export declare var glext: OES_vertex_array_object;
-
-export function initGL() {
-  const canvas = <HTMLCanvasElement>document.querySelector("#glCanvas")!;
-  // Initialize the GL context
-  const ctx = canvas.getContext("webgl");
-
-  // Only continue if WebGL is available and working
-  if (ctx === null) {
-    alert(
-      "Unable to initialize WebGL. Your browser or machine may not support it."
-    );
-    return;
-  }
-  const ext = ctx.getExtension("OES_vertex_array_object");
-
-  if (ext === null) {
-    alert("OES Vertex array object extension not supported!");
-    return;
-  }
-
-  gl = ctx;
-  glext = ext;
-}
+import { initGL, gl } from "./Graphics/gl";
+initGL(); // We have to initialize webgl before we import further
+import { Loader } from "./Graphics/Loader";
 
 export abstract class Game {
   private deltaTime: number = 0;
   protected lastTimestamp: number = 0;
   private maxFPS: number = 60;
   private timestep: number = 1000 / 60;
+  private loader: Loader = new Loader();
 
-  constructor() {
-    initGL();
-  }
+  constructor() {}
   public start() {
     this.setup();
     this.init();
-    this.load();
+    this.load(this.loader);
+  }
 
+  public startLoop() {
     requestAnimationFrame(this.loop.bind(this));
   }
 
@@ -74,7 +53,7 @@ export abstract class Game {
   }
 
   abstract init(): void;
-  abstract load(): void;
+  abstract load(loader: Loader): void;
   abstract update(deltaTime: number): void;
   abstract draw(): void;
 }

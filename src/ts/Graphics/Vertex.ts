@@ -46,6 +46,6 @@ export class VertexPositionColorUV implements Vertex {
   pack(buffer: ArrayBuffer, offset: number): void {
     this.position.pack(new Float32Array(buffer), offset / 4);
     this.color.pack(new Uint8Array(buffer), offset + 12);
-    this.uv.pack(new Float32Array(buffer), offset / 4 + 5);
+    this.uv.pack(new Float32Array(buffer), offset / 4 + 4);
   }
 }

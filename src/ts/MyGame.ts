@@ -1,35 +1,72 @@
-import { Game, gl } from "./Game";
+import { Game } from "./Game";
+import { gl } from "./Graphics/gl";
 import { Camera } from "./Graphics/Camera";
 import { Mesh } from "./Graphics/Mesh";
-import { BasicMaterial, Material } from "./Graphics/Material";
+import { ColorTextureMaterial } from "./Graphics/Material/ColorTextureMaterial";
 import { GeometryBuilder } from "./Graphics/GeometryBuilder";
-import { VertexPositionColor } from "./Graphics/Vertex";
 import { Vector3 } from "./Graphics/Vector3";
 import { Color } from "./Graphics/Color";
+import { Loader } from "./Graphics/Loader";
+import { Vector2 } from "./Graphics/Vector2";
+import { VertexPositionColorUV } from "./Graphics/Vertex";
+import { TextureWrap, TextureFilter } from "./Graphics/Texture2D";
+
+const builder = new GeometryBuilder<VertexPositionColorUV>();
+const geometry = builder
+  .addQuad(
+    new VertexPositionColorUV(
+      new Vector3(0, 1, 0),
+      Color.White,
+      new Vector2(0, 0)
+    ),
+    new VertexPositionColorUV(
+      new Vector3(1, 1, 0),
+      Color.White,
+      new Vector2(1, 0)
+    ),
+    new VertexPositionColorUV(
+      new Vector3(0, 0, 0),
+      Color.White,
+      new Vector2(0, 1)
+    ),
+    new VertexPositionColorUV(
+      new Vector3(1, 0, 0),
+      Color.White,
+      new Vector2(1, 1)
+    )
+  )
+  .finalize();
 
 export class MyGame extends Game {
-  material: Material;
-  mesh: Mesh;
+  scene: any = {};
   camera: Camera;
   constructor() {
     super();
 
-    const builder = new GeometryBuilder<VertexPositionColor>();
-    const geometry = builder
-      .add(new VertexPositionColor(new Vector3(-1, -1, 0), Color.Red))
-      .add(new VertexPositionColor(new Vector3(1, -1, 0), Color.Green))
-      .add(new VertexPositionColor(new Vector3(0, 1, 0), Color.Blue))
-      .finalize();
-
-    const material = new BasicMaterial();
-    const mesh = new Mesh(geometry, material.getInstance());
-
-    this.material = material;
-    this.mesh = mesh;
     // Create Camera
     this.camera = new Camera([-1, 0, -3]);
   }
-  load() {}
+  load(loader: Loader) {
+    loader
+      .add(
+        "tex1",
+        "./assets/test2.png",
+        false,
+        TextureWrap.CLAMP_EDGE,
+        TextureFilter.LINEAR
+      )
+      .load(textures => {
+        const material = new ColorTextureMaterial();
+        const matInstance = material.getInstance();
+        matInstance.data.texture = textures["tex1"];
+        const mesh = new Mesh(geometry, matInstance);
+
+        this.scene["material"] = material;
+        this.scene["mesh"] = mesh;
+
+        this.startLoop();
+      });
+  }
   init() {}
   update(deltaTime: number) {
     this.camera.position = [
@@ -40,13 +77,16 @@ export class MyGame extends Game {
   }
 
   draw() {
-    this.material.use();
-    this.material.perPass(this.camera);
-    this.material.perMesh(this.mesh.material.data);
-    this.mesh.bind();
+    const material = this.scene["material"];
+    const mesh = this.scene["mesh"];
+
+    material.use();
+    material.perPass(this.camera);
+    material.perMesh(mesh.material.data);
+    mesh.bind();
     gl.drawElements(
       gl.TRIANGLES,
-      this.mesh.geometry.indexCount,
+      mesh.geometry.indexCount,
       gl.UNSIGNED_SHORT,
       0
     );

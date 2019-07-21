@@ -1,4 +1,4 @@
-import { gl } from "../Game";
+import { gl } from "./gl";
 import { VertexLayout } from "./VertexLayout";
 
 export class VertexBuffer {

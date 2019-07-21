@@ -1,5 +1,5 @@
 import { VertexBuffer } from "./VertexBuffer";
-import { glext, gl } from "../Game";
+import { glext, gl } from "./gl";
 import { IndexBuffer } from "./IndexBuffer";
 
 export class Geometry {

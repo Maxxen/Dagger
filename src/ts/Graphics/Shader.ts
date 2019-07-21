@@ -1,5 +1,6 @@
-import { gl } from "../Game";
+import { gl } from "./gl";
 import { mat4 } from "gl-matrix";
+import { Texture2D } from "./Texture2D";
 
 export class Shader {
   private program: WebGLProgram;
@@ -82,5 +83,18 @@ export class Shader {
 
   public setFloat(name: string, value: number) {
     gl.uniform1f(this.uniformLocations[name], value);
+  }
+
+  public setTexture(
+    sampler: number,
+    sampleName: string,
+    texture: Texture2D,
+    slot: number
+  ) {
+    gl.activeTexture(sampler);
+
+    texture.bind();
+
+    gl.uniform1i(this.uniformLocations[sampleName], slot);
   }
 }

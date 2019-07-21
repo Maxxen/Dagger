@@ -1,4 +1,4 @@
-import { gl } from "../Game";
+import { gl } from "./gl";
 import { mat4 } from "gl-matrix";
 
 export class Camera {

@@ -1,5 +1,5 @@
 import { Geometry } from "./Geometry";
-import { MaterialInstance, MaterialParams } from "./Material";
+import { MaterialInstance, MaterialParams } from "./Material/Material";
 
 export class Mesh<T extends MaterialParams = {}> {
   constructor(
