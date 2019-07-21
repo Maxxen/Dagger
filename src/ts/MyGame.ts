@@ -1,4 +1,4 @@
-import { Game } from "./Game";
+import { Game, gl } from "./Game";
 import { Camera } from "./Graphics/Camera";
 import { Mesh } from "./Graphics/Mesh";
 import { BasicMaterial, Material } from "./Graphics/Material";
@@ -21,9 +21,11 @@ export class MyGame extends Game {
       .add(new VertexPositionColor(new Vector3(0, 1, 0), Color.Blue))
       .finalize();
 
-    this.material = new BasicMaterial();
+    const material = new BasicMaterial();
+    const mesh = new Mesh(geometry, material.getInstance());
 
-    this.mesh = new Mesh(geometry, this.material);
+    this.material = material;
+    this.mesh = mesh;
     // Create Camera
     this.camera = new Camera([-1, 0, -3]);
   }
@@ -40,6 +42,13 @@ export class MyGame extends Game {
   draw() {
     this.material.use();
     this.material.perPass(this.camera);
-    this.mesh.draw();
+    this.material.perMesh(this.mesh.material.data);
+    this.mesh.bind();
+    gl.drawElements(
+      gl.TRIANGLES,
+      this.mesh.geometry.indexCount,
+      gl.UNSIGNED_SHORT,
+      0
+    );
   }
 }

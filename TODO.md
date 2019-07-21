@@ -1,3 +1,7 @@
+Buffers[X]
+Geometry builder[X]
+Packable vertex types [X]
+Color [X]
 Transform class []
 Spritebatch []
 Asset loader []

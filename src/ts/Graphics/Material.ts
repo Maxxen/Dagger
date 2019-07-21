@@ -1,18 +1,31 @@
 import { Shader } from "./Shader";
 import { Camera } from "./Camera";
-import { Mesh } from "./Mesh";
-import { gl } from "../Game";
+import { mat4 } from "gl-matrix";
 
-export abstract class Material {
-  constructor(public readonly name: string, protected shader: Shader) {}
+export type MaterialParams = { [key: string]: number | mat4 };
+
+export class MaterialInstance<T extends MaterialParams = {}> {
+  constructor(public readonly name: string, public data: T) {}
+}
+
+export abstract class Material<T extends MaterialParams = {}> {
+  constructor(
+    public readonly name: string,
+    protected shader: Shader,
+    private defaultParams: T
+  ) {}
 
   public use() {
     this.shader.use();
   }
 
-  abstract perPass(camera: Camera): void;
+  public getInstance(): MaterialInstance<T> {
+    return new MaterialInstance<T>(this.name, this.defaultParams);
+  }
 
-  abstract perMesh(mesh: Mesh): void;
+  public abstract perPass(camera: Camera): void;
+
+  public abstract perMesh(data: T): void;
 }
 
 const vsSource = `
@@ -40,9 +53,15 @@ const fsSource = `
         }
       `;
 
-export class BasicMaterial extends Material {
+export interface BasicMaterialParams {
+  [key: string]: mat4;
+  model: mat4;
+}
+export class BasicMaterial extends Material<BasicMaterialParams> {
   constructor() {
-    super("BasicMaterial", new Shader(vsSource, fsSource));
+    super("BasicMaterial", new Shader(vsSource, fsSource), {
+      model: mat4.create()
+    });
   }
 
   perPass(camera: Camera) {
@@ -50,13 +69,40 @@ export class BasicMaterial extends Material {
     this.shader.setMat4("P", camera.projection);
   }
 
-  perMesh(mesh: Mesh): void {
-    this.shader.setMat4("M", mesh.model);
-    gl.drawElements(
-      gl.TRIANGLES,
-      mesh.geometry.indexCount,
-      gl.UNSIGNED_SHORT,
-      0
-    );
+  perMesh(data: BasicMaterialParams): void {
+    this.shader.setMat4("M", data.model);
   }
 }
+/*
+class Scene {
+  mats: { [key: string]: Material } = {};
+  meshes: Mesh[] = [];
+  constructor() {}
+
+  addMaterial(mat: Material, name: string) {
+    this.mats[name] = mat;
+  }
+
+  draw() {
+    for (let mat in this.mats) {
+      const material = this.mats[mat];
+      material.use();
+      material.perPass({} as Camera);
+
+      for (let m in this.meshes) {
+        const mesh = this.meshes[m];
+        if (mesh.material.name == material.name) {
+          material.perMesh(mesh)
+          mesh.bind();
+          gl.drawElements(
+            gl.TRIANGLES,
+            mesh.geometry.indexCount,
+            gl.UNSIGNED_SHORT,
+            0
+          );
+        }
+      }
+    }
+  }
+}
+*/

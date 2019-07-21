@@ -6,7 +6,7 @@ export class Color {
     public a: number = 1
   ) {}
 
-  public static readonly Red = new Color(0, 1, 0, 1);
+  public static readonly Red = new Color(1, 0, 0, 1);
   public static readonly Green = new Color(0, 1, 0, 1);
   public static readonly Blue = new Color(0, 0, 1, 1);
   public static readonly White = new Color(1, 1, 1, 1);

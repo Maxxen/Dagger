@@ -7873,6 +7873,12 @@ var Color = /** @class */ (function () {
         this.a = a;
     }
     Color.prototype.pack = function (view, offset) {
+        view[offset] = Math.floor(this.r * 255);
+        view[offset + 1] = Math.floor(this.g * 255);
+        view[offset + 2] = Math.floor(this.b * 255);
+        view[offset + 3] = Math.floor(this.a * 255);
+    };
+    Color.prototype.packAsFloat = function (view, offset) {
         view[offset] = this.r;
         view[offset + 1] = this.g;
         view[offset + 2] = this.b;
@@ -8077,14 +8083,26 @@ var __extends = (this && this.__extends) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 var Shader_1 = __webpack_require__(/*! ./Shader */ "./src/ts/Graphics/Shader.ts");
-var Game_1 = __webpack_require__(/*! ../Game */ "./src/ts/Game.ts");
+var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
+var MaterialInstance = /** @class */ (function () {
+    function MaterialInstance(name, data) {
+        this.name = name;
+        this.data = data;
+    }
+    return MaterialInstance;
+}());
+exports.MaterialInstance = MaterialInstance;
 var Material = /** @class */ (function () {
-    function Material(name, shader) {
+    function Material(name, shader, defaultParams) {
         this.name = name;
         this.shader = shader;
+        this.defaultParams = defaultParams;
     }
     Material.prototype.use = function () {
         this.shader.use();
+    };
+    Material.prototype.getInstance = function () {
+        return new MaterialInstance(this.name, this.defaultParams);
     };
     return Material;
 }());
@@ -8094,19 +8112,52 @@ var fsSource = "\n        precision mediump float;\n\n        varying vec4 v_col
 var BasicMaterial = /** @class */ (function (_super) {
     __extends(BasicMaterial, _super);
     function BasicMaterial() {
-        return _super.call(this, "BasicMaterial", new Shader_1.Shader(vsSource, fsSource)) || this;
+        return _super.call(this, "BasicMaterial", new Shader_1.Shader(vsSource, fsSource), {
+            model: gl_matrix_1.mat4.create()
+        }) || this;
     }
     BasicMaterial.prototype.perPass = function (camera) {
         this.shader.setMat4("V", camera.view);
         this.shader.setMat4("P", camera.projection);
     };
-    BasicMaterial.prototype.perMesh = function (mesh) {
-        this.shader.setMat4("M", mesh.model);
-        Game_1.gl.drawElements(Game_1.gl.TRIANGLES, mesh.geometry.indexCount, Game_1.gl.UNSIGNED_SHORT, 0);
+    BasicMaterial.prototype.perMesh = function (data) {
+        this.shader.setMat4("M", data.model);
     };
     return BasicMaterial;
 }(Material));
 exports.BasicMaterial = BasicMaterial;
+/*
+class Scene {
+  mats: { [key: string]: Material } = {};
+  meshes: Mesh[] = [];
+  constructor() {}
+
+  addMaterial(mat: Material, name: string) {
+    this.mats[name] = mat;
+  }
+
+  draw() {
+    for (let mat in this.mats) {
+      const material = this.mats[mat];
+      material.use();
+      material.perPass({} as Camera);
+
+      for (let m in this.meshes) {
+        const mesh = this.meshes[m];
+        if (mesh.material.name == material.name) {
+          material.perMesh(mesh);
+          gl.drawElements(
+            gl.TRIANGLES,
+            mesh.geometry.indexCount,
+            gl.UNSIGNED_SHORT,
+            0
+          );
+        }
+      }
+    }
+  }
+}
+*/
 
 
 /***/ }),
@@ -8128,9 +8179,8 @@ var Mesh = /** @class */ (function () {
         this.material = material;
         this.model = gl_matrix_1.mat4.create();
     }
-    Mesh.prototype.draw = function () {
+    Mesh.prototype.bind = function () {
         this.geometry.bind();
-        this.material.perMesh(this);
     };
     return Mesh;
 }());
@@ -8272,6 +8322,24 @@ var VertexPositionColor = /** @class */ (function () {
     return VertexPositionColor;
 }());
 exports.VertexPositionColor = VertexPositionColor;
+var VertexPositionColorUV = /** @class */ (function () {
+    function VertexPositionColorUV(position, color, uv) {
+        this.position = position;
+        this.color = color;
+        this.uv = uv;
+    }
+    VertexPositionColorUV.prototype.getLayout = function () {
+        return VertexPositionColorUV.layout;
+    };
+    VertexPositionColorUV.prototype.pack = function (buffer, offset) {
+        this.position.pack(new Float32Array(buffer), offset / 4);
+        this.color.pack(new Uint8Array(buffer), offset + 12);
+        this.uv.pack(new Float32Array(buffer), offset / 4 + 5);
+    };
+    VertexPositionColorUV.layout = new VertexLayout_1.VertexLayout([VertexLayout_1.AttribType.FLOAT, 3], [VertexLayout_1.AttribType.UNSIGNED_BYTE, 4], [VertexLayout_1.AttribType.FLOAT, 2]);
+    return VertexPositionColorUV;
+}());
+exports.VertexPositionColorUV = VertexPositionColorUV;
 
 
 /***/ }),
@@ -8448,12 +8516,12 @@ var MyGame = /** @class */ (function (_super) {
         var _this = _super.call(this) || this;
         var builder = new GeometryBuilder_1.GeometryBuilder();
         var geometry = builder
-            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(-1, -1, 0), new Color_1.Color(1, 0, 0)))
-            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(1, -1, 0), new Color_1.Color(0, 1, 0)))
-            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(0, 1, 0), new Color_1.Color(0, 0, 1)))
+            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(-1, -1, 0), Color_1.Color.Red))
+            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(1, -1, 0), Color_1.Color.Green))
+            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.Blue))
             .finalize();
         _this.material = new Material_1.BasicMaterial();
-        _this.mesh = new Mesh_1.Mesh(geometry, _this.material);
+        _this.mesh = new Mesh_1.Mesh(geometry, _this.material.getInstance());
         // Create Camera
         _this.camera = new Camera_1.Camera([-1, 0, -3]);
         return _this;
@@ -8470,7 +8538,7 @@ var MyGame = /** @class */ (function (_super) {
     MyGame.prototype.draw = function () {
         this.material.use();
         this.material.perPass(this.camera);
-        this.mesh.draw();
+        this.material.perMesh(this.mesh.material);
     };
     return MyGame;
 }(Game_1.Game));

@@ -1,13 +1,13 @@
 import { Geometry } from "./Geometry";
-import { Material } from "./Material";
-import { mat4 } from "gl-matrix";
+import { MaterialInstance, MaterialParams } from "./Material";
 
-export class Mesh {
-  public model: mat4 = mat4.create();
-  constructor(public readonly geometry: Geometry, public material: Material) {}
+export class Mesh<T extends MaterialParams = {}> {
+  constructor(
+    public readonly geometry: Geometry,
+    public material: MaterialInstance<T>
+  ) {}
 
-  draw() {
+  bind() {
     this.geometry.bind();
-    this.material.perMesh(this);
   }
 }
