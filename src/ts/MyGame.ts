@@ -48,29 +48,19 @@ export class MyGame extends Game {
   }
   load(loader: Loader) {
     loader
-      .queue(
-        [
-          [
-            "tex1",
-            "./assets/test2.png",
-            false,
-            TextureWrap.CLAMP_EDGE,
-            TextureFilter.LINEAR
-          ]
-        ],
-        textures => {
-          const material = new ColorTextureMaterial();
-          const matInstance = material.getInstance();
-          matInstance.data.texture = textures["tex1"];
-          const mesh = new Mesh(geometry, matInstance);
+      .loadMany("tex1")
+      .then(textures => {
+        const material = new ColorTextureMaterial();
+        const matInstance = material.getInstance();
+        matInstance.data.texture = textures["tex1"];
+        const mesh = new Mesh(geometry, matInstance);
 
-          this.scene["material"] = material;
-          this.scene["mesh"] = mesh;
+        this.scene["material"] = material;
+        this.scene["mesh"] = mesh;
 
-          this.startLoop();
-        }
-      )
-      .load();
+        this.startLoop();
+      })
+      .catch(e => console.log(e));
   }
   init() {}
   update(deltaTime: number) {

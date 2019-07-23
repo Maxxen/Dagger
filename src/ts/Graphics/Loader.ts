@@ -32,88 +32,47 @@ export class Loader {
     return this.cache[name];
   }
 
-  public queue(param: TextureParam[], onLoad: onLoadCallback) {
-    const oldAction = this.nextAction;
-    this.nextAction = () => {
-      this.loadAction(param, result => {
-        onLoad(result), oldAction();
-      });
-    };
-    return this;
-  }
-
-  public load() {
-    this.nextAction();
-    this.nextAction = () => {};
-    return this;
-  }
-
-  public loadAction(batch: TextureParam[], onLoad: onLoadCallback) {
-    const textures: { [key: string]: Texture2D } = {};
-    let loaded = 0;
-    const count = batch.length;
-
-    batch.forEach(([name, url, mipmap, wrapmode, filtermode]) => {
-      this.loadTexture(name, url, mipmap, wrapmode, filtermode, tex => {
-        textures[name] = tex;
-        loaded++;
-        if (loaded == count) {
-          onLoad(textures);
-        }
-      });
-    });
-    return this;
-  }
-
-  public makePromise(url: string, loaded: HTMLImageElement[]) {
-    return new Promise(
-      (resolve: (loaded: HTMLImageElement[]) => void, reject) => {
-        let img = new Image();
-
-        img.addEventListener("load", e => {
-          loaded.push(img);
-          resolve(loaded);
-        });
-
-        img.addEventListener("error", () => {
-          reject(new Error(`Failed to load image's URL: ${url}`));
-        });
-        img.src = url;
-      }
-    );
-  }
-
-  public recurse(
-    urls: string[],
-    loaded: HTMLImageElement[]
+  private loadImage(
+    elem: string,
+    collection: HTMLImageElement[]
   ): Promise<HTMLImageElement[]> {
-    if (urls.length == 0) {
+    return new Promise<HTMLImageElement[]>((resolve, reject) => {
+      let img = new Image();
+      img.addEventListener("load", e => {
+        collection.push(img);
+        resolve(collection);
+      });
+
+      img.addEventListener("error", () => {
+        reject(new Error(`Failed to load image's URL: ${elem}`));
+      });
+      img.src = elem;
+    });
+  }
+
+  public foldPromises<T, K>(
+    input: T[],
+    collection: K[],
+    foldFunc: PromiseFoldFunc<T, K>
+  ): Promise<K[]> {
+    if (input.length == 0) {
       return new Promise((resolve, reject) => {
-        resolve(loaded);
+        resolve(collection);
       });
     } else {
-      const url = urls.pop()!;
-      const p = new Promise<HTMLImageElement[]>((resolve, reject) => {
-        let img = new Image();
-        img.addEventListener("load", e => {
-          loaded.push(img);
-          resolve(loaded);
-        });
+      const promise = foldFunc(input.pop()!, collection);
 
-        img.addEventListener("error", () => {
-          reject(new Error(`Failed to load image's URL: ${url}`));
-        });
-        img.src = url;
-      });
-
-      p.then(loaded => this.recurse(urls, loaded));
-      return p;
+      promise.then(collection =>
+        this.foldPromises(input, collection, foldFunc)
+      );
+      return promise;
     }
   }
 
   public loadMany(...batch: string[]) {
-    return this.recurse(batch, []);
+    return this.foldPromises(batch, [], this.loadImage);
   }
 }
+type PromiseFoldFunc<T, K> = (elem: T, collection: K[]) => Promise<K[]>;
 type onLoadCallback = (textures: { [key: string]: Texture2D }) => void;
 type TextureParam = [string, string, boolean, TextureWrap, TextureFilter];
