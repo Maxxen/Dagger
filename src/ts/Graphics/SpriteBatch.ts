@@ -1,4 +1,4 @@
-import { Texture2D } from "./Texture2D";
+/* import { Texture2D } from "./Texture2D";
 import { Rectangle } from "../Rectangle";
 import { Point } from "../Point";
 import { Geometry } from "./Geometry";
@@ -55,3 +55,4 @@ export class SpriteBatch {
 
   private createQuad(texture: Texture2D) {}
 }
+*/

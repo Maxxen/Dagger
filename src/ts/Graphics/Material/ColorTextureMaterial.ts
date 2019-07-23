@@ -45,7 +45,7 @@ export class ColorTextureMaterial extends Material<ColorTextureMaterialParams> {
   constructor() {
     super("ColorTextureMaterial", new Shader(vsSource, fsSource), {
       model: mat4.create(),
-      texture: new Texture2D(new Uint8Array([255, 255, 255, 255]))
+      texture: Texture2D.TEXTURE_DEFAULT
     });
   }
 

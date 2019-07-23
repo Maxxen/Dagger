@@ -7871,11 +7871,12 @@ var Color = /** @class */ (function () {
         view[offset + 2] = this.b;
         view[offset + 3] = this.a;
     };
-    Color.Red = new Color(1, 0, 0, 1);
-    Color.Green = new Color(0, 1, 0, 1);
-    Color.Blue = new Color(0, 0, 1, 1);
-    Color.White = new Color(1, 1, 1, 1);
-    Color.Black = new Color(0, 0, 0, 1);
+    Color.RED = new Color(1, 0, 0, 1);
+    Color.GREEN = new Color(0, 1, 0, 1);
+    Color.BLUE = new Color(0, 0, 1, 1);
+    Color.WHITE = new Color(1, 1, 1, 1);
+    Color.BLACK = new Color(0, 0, 0, 1);
+    Color.PURPLE = new Color(1, 0, 1, 1);
     return Color;
 }());
 exports.Color = Color;
@@ -8075,53 +8076,33 @@ var Texture2D_1 = __webpack_require__(/*! ./Texture2D */ "./src/ts/Graphics/Text
 var Loader = /** @class */ (function () {
     function Loader() {
         this.cache = {};
-        this.batch = [];
     }
-    Loader.prototype.loadTexture = function (name, url, mipmap, wrapmode, filtermode, onLoad) {
-        var _this = this;
-        if (this.cache[name] == null) {
-            var image_1 = new Image();
-            image_1.onload = function () {
-                var tex = new Texture2D_1.Texture2D(image_1, mipmap, wrapmode, filtermode);
-                _this.cache[name] = tex;
-                onLoad(tex);
-            };
-            image_1.src = url;
-        }
-        else {
-            onLoad(this.cache[name]);
-        }
-    };
-    Loader.prototype.add = function (name, url, mipmap, wrapmode, filtermode) {
-        if (mipmap === void 0) { mipmap = false; }
-        if (wrapmode === void 0) { wrapmode = Texture2D_1.TextureWrap.CLAMP_EDGE; }
-        if (filtermode === void 0) { filtermode = Texture2D_1.TextureFilter.LINEAR; }
-        this.batch.push([name, url, mipmap, wrapmode, filtermode]);
-        return this;
-    };
-    Loader.prototype.load = function (onLoad) {
-        var _this = this;
-        var textures = {};
-        var loaded = 0;
-        var toLoad = this.batch.length;
-        this.batch.forEach(function (_a) {
-            var name = _a[0], url = _a[1], mipmap = _a[2], wrapmode = _a[3], filtermode = _a[4];
-            _this.loadTexture(name, url, mipmap, wrapmode, filtermode, function (tex) {
-                textures[name] = tex;
-                loaded++;
-                if (loaded == toLoad) {
-                    _this.batch = [];
-                    onLoad(textures);
-                }
-            });
-        });
-        return this;
-    };
     Loader.prototype.isLoaded = function (name) {
         return name in this.cache;
     };
     Loader.prototype.getLoaded = function (name) {
         return this.cache[name];
+    };
+    Loader.prototype.loadImage = function (_a) {
+        var name = _a[0], url = _a[1], mipmap = _a[2], wrap = _a[3], filter = _a[4];
+        return new Promise(function (resolve, reject) {
+            var image = new Image();
+            image.addEventListener("load", function () {
+                var tex = new Texture2D_1.Texture2D(image, mipmap, wrap, filter);
+                resolve(tex);
+            });
+            image.addEventListener("error", function () {
+                reject(new Error("Failed to load texture " + name + " [" + url + "]"));
+            });
+            image.src = url;
+        });
+    };
+    Loader.prototype.loadMany = function () {
+        var batch = [];
+        for (var _i = 0; _i < arguments.length; _i++) {
+            batch[_i] = arguments[_i];
+        }
+        return Promise.all(batch.map(this.loadImage));
     };
     return Loader;
 }());
@@ -8165,7 +8146,7 @@ var ColorTextureMaterial = /** @class */ (function (_super) {
     function ColorTextureMaterial() {
         return _super.call(this, "ColorTextureMaterial", new Shader_1.Shader(vsSource, fsSource), {
             model: gl_matrix_1.mat4.create(),
-            texture: new Texture2D_1.Texture2D(new Uint8Array([255, 255, 255, 255]))
+            texture: Texture2D_1.Texture2D.TEXTURE_DEFAULT
         }) || this;
     }
     ColorTextureMaterial.prototype.perPass = function (camera) {
@@ -8372,6 +8353,7 @@ exports.Shader = Shader;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
+var Color_1 = __webpack_require__(/*! ./Color */ "./src/ts/Graphics/Color.ts");
 var TextureFilter;
 (function (TextureFilter) {
     TextureFilter[TextureFilter["LINEAR"] = gl_1.gl.LINEAR] = "LINEAR";
@@ -8411,31 +8393,40 @@ var Texture2D = /** @class */ (function () {
         this.textureID = gl_1.gl.createTexture();
         gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
         if (this.sourceIsImage(source)) {
-            gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, this.srcFormat, this.srcType, source);
-            if (mipmap) {
-                if (this.isPowerOf2(source.width) && this.isPowerOf2(source.height)) {
-                    gl_1.gl.generateMipmap(gl_1.gl.TEXTURE_2D);
-                }
-                else {
-                    console.log("WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
-                        source.src +
-                        " )");
-                }
-            }
+            this.width = source.width;
+            this.height = source.height;
+            this.generateFromImage(source, mipmap);
         }
         else {
-            gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, 1, 1, 0, this.srcFormat, this.srcType, source);
+            this.width = 1;
+            this.height = 1;
+            this.generateFromColor(source);
         }
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_WRAP_S, this.wrapMode);
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_WRAP_T, this.wrapMode);
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_MIN_FILTER, this.filterMode);
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_MAG_FILTER, this.filterMode);
     }
+    Texture2D.prototype.generateFromImage = function (source, mipmap) {
+        gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, this.srcFormat, this.srcType, source);
+        if (mipmap) {
+            if (this.isPowerOf2(source.width) && this.isPowerOf2(source.height)) {
+                gl_1.gl.generateMipmap(gl_1.gl.TEXTURE_2D);
+            }
+            else {
+                console.log("WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
+                    source.src +
+                    " )");
+            }
+        }
+    };
+    Texture2D.prototype.generateFromColor = function (source) {
+        var arr = new Uint8Array(4);
+        source.pack(arr, 0);
+        gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, 1, 1, 0, this.srcFormat, this.srcType, arr);
+    };
     Texture2D.prototype.sourceIsImage = function (source) {
         return source.width !== undefined;
-    };
-    Texture2D.generateDefault = function () {
-        return new Texture2D(new Uint8Array([0, 0, 255, 255]));
     };
     Texture2D.prototype.isPowerOf2 = function (number) {
         return (number & (number - 1)) === 0;
@@ -8443,6 +8434,10 @@ var Texture2D = /** @class */ (function () {
     Texture2D.prototype.bind = function () {
         gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
     };
+    Texture2D.prototype.equals = function (other) {
+        return this.textureID === other.textureID;
+    };
+    Texture2D.TEXTURE_DEFAULT = new Texture2D(Color_1.Color.PURPLE);
     return Texture2D;
 }());
 exports.Texture2D = Texture2D;
@@ -8756,7 +8751,7 @@ var Vertex_1 = __webpack_require__(/*! ./Graphics/Vertex */ "./src/ts/Graphics/V
 var Texture2D_1 = __webpack_require__(/*! ./Graphics/Texture2D */ "./src/ts/Graphics/Texture2D.ts");
 var builder = new GeometryBuilder_1.GeometryBuilder();
 var geometry = builder
-    .addQuad(new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.White, new Vector2_1.Vector2(0, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 1, 0), Color_1.Color.White, new Vector2_1.Vector2(1, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 0, 0), Color_1.Color.White, new Vector2_1.Vector2(0, 1)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 0, 0), Color_1.Color.White, new Vector2_1.Vector2(1, 1)))
+    .addQuad(new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 1)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 1)))
     .finalize();
 var MyGame = /** @class */ (function (_super) {
     __extends(MyGame, _super);
@@ -8770,16 +8765,23 @@ var MyGame = /** @class */ (function (_super) {
     MyGame.prototype.load = function (loader) {
         var _this = this;
         loader
-            .add("tex1", "./assets/test2.png", false, Texture2D_1.TextureWrap.CLAMP_EDGE, Texture2D_1.TextureFilter.LINEAR)
-            .load(function (textures) {
+            .loadMany([
+            "tex1",
+            "assets/test2.png",
+            false,
+            Texture2D_1.TextureWrap.REPEAT,
+            Texture2D_1.TextureFilter.NEAREST
+        ])
+            .then(function (textures) {
             var material = new ColorTextureMaterial_1.ColorTextureMaterial();
             var matInstance = material.getInstance();
-            matInstance.data.texture = textures["tex1"];
+            matInstance.data.texture = textures[0];
             var mesh = new Mesh_1.Mesh(geometry, matInstance);
             _this.scene["material"] = material;
             _this.scene["mesh"] = mesh;
             _this.startLoop();
-        });
+        })
+            .catch(function (e) { return console.log(e); });
     };
     MyGame.prototype.init = function () { };
     MyGame.prototype.update = function (deltaTime) {

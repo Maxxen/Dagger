@@ -48,11 +48,17 @@ export class MyGame extends Game {
   }
   load(loader: Loader) {
     loader
-      .loadMany("tex1")
+      .load([
+        "tex1",
+        "assets/test2.png",
+        false,
+        TextureWrap.REPEAT,
+        TextureFilter.NEAREST
+      ])
       .then(textures => {
         const material = new ColorTextureMaterial();
         const matInstance = material.getInstance();
-        matInstance.data.texture = textures["tex1"];
+        matInstance.data.texture = textures[0];
         const mesh = new Mesh(geometry, matInstance);
 
         this.scene["material"] = material;
