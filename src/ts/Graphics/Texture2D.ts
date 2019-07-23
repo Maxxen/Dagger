@@ -1,4 +1,5 @@
 import { gl } from "./gl";
+import { Color } from "./Color";
 
 export enum TextureFilter {
   LINEAR = gl.LINEAR,
@@ -25,65 +26,30 @@ export enum TexturePixelType {
 
 export class Texture2D {
   private textureID: WebGLTexture;
-
-  public readonly wrapMode: TextureWrap;
-  public readonly filterMode: TextureFilter;
-  public readonly internalFormat: number;
-  public readonly srcFormat: number;
-  public readonly srcType: number;
+  public readonly width: number;
+  public readonly height: number;
 
   constructor(
-    source: HTMLImageElement | Uint8Array,
+    source: HTMLImageElement | Color,
     mipmap: boolean = true,
-    wrapMode: TextureWrap = TextureWrap.CLAMP_EDGE,
-    filterMode: TextureFilter = TextureFilter.LINEAR,
-    internalFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
-    srcFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
-    srcType: TexturePixelType = gl.UNSIGNED_BYTE
+    public readonly wrapMode: TextureWrap = TextureWrap.CLAMP_EDGE,
+    public readonly filterMode: TextureFilter = TextureFilter.LINEAR,
+    public readonly internalFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
+    public readonly srcFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
+    public readonly srcType: TexturePixelType = gl.UNSIGNED_BYTE
   ) {
-    this.wrapMode = wrapMode;
-    this.filterMode = filterMode;
-    this.internalFormat = internalFormat;
-    this.srcFormat = srcFormat;
-    this.srcType = srcType;
-
     this.textureID = gl.createTexture()!;
 
     gl.bindTexture(gl.TEXTURE_2D, this.textureID);
 
     if (this.sourceIsImage(source)) {
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        this.internalFormat,
-        this.srcFormat,
-        this.srcType,
-        source
-      );
-
-      if (mipmap) {
-        if (this.isPowerOf2(source.width) && this.isPowerOf2(source.height)) {
-          gl.generateMipmap(gl.TEXTURE_2D);
-        } else {
-          console.log(
-            "WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
-              source.src +
-              " )"
-          );
-        }
-      }
+      this.width = source.width;
+      this.height = source.height;
+      this.generateFromImage(source, mipmap);
     } else {
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        this.internalFormat,
-        1,
-        1,
-        0,
-        this.srcFormat,
-        this.srcType,
-        source
-      );
+      this.width = 1;
+      this.height = 1;
+      this.generateFromColor(source);
     }
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, this.wrapMode);
@@ -92,14 +58,49 @@ export class Texture2D {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, this.filterMode);
   }
 
-  private sourceIsImage(
-    source: Uint8Array | HTMLImageElement
-  ): source is HTMLImageElement {
-    return (source as HTMLImageElement).width !== undefined;
+  private generateFromImage(source: HTMLImageElement, mipmap: boolean) {
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      this.internalFormat,
+      this.srcFormat,
+      this.srcType,
+      source
+    );
+
+    if (mipmap) {
+      if (this.isPowerOf2(source.width) && this.isPowerOf2(source.height)) {
+        gl.generateMipmap(gl.TEXTURE_2D);
+      } else {
+        console.log(
+          "WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
+            source.src +
+            " )"
+        );
+      }
+    }
   }
 
-  public static generateDefault() {
-    return new Texture2D(new Uint8Array([0, 0, 255, 255]));
+  private generateFromColor(source: Color) {
+    const arr = new Uint8Array(4);
+    source.pack(arr, 0);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      this.internalFormat,
+      1,
+      1,
+      0,
+      this.srcFormat,
+      this.srcType,
+      arr
+    );
+  }
+
+  private sourceIsImage(
+    source: Color | HTMLImageElement
+  ): source is HTMLImageElement {
+    return (source as HTMLImageElement).width !== undefined;
   }
 
   private isPowerOf2(number: number) {
@@ -108,5 +109,11 @@ export class Texture2D {
 
   public bind() {
     gl.bindTexture(gl.TEXTURE_2D, this.textureID);
+  }
+
+  static TEXTURE_DEFAULT = new Texture2D(Color.PURPLE);
+
+  public equals(other: Texture2D) {
+    return this.textureID === other.textureID;
   }
 }

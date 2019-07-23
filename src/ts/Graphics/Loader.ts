@@ -2,6 +2,7 @@ import { Texture2D, TextureWrap, TextureFilter } from "./Texture2D";
 
 export class Loader {
   private cache: { [key: string]: Texture2D } = {};
+  private nextAction: () => void = () => {};
 
   private loadTexture(
     name: string,
@@ -24,29 +25,39 @@ export class Loader {
     }
   }
 
-  batch: [string, string, boolean, TextureWrap, TextureFilter][] = [];
-  public add(
-    name: string,
-    url: string,
-    mipmap: boolean = false,
-    wrapmode: TextureWrap = TextureWrap.CLAMP_EDGE,
-    filtermode: TextureFilter = TextureFilter.LINEAR
-  ) {
-    this.batch.push([name, url, mipmap, wrapmode, filtermode]);
+  public isLoaded(name: string): boolean {
+    return name in this.cache;
+  }
+  public getLoaded(name: string) {
+    return this.cache[name];
+  }
+
+  public queue(param: TextureParam[], onLoad: onLoadCallback) {
+    const oldAction = this.nextAction;
+    this.nextAction = () => {
+      this.loadAction(param, result => {
+        onLoad(result), oldAction();
+      });
+    };
     return this;
   }
 
-  public load(onLoad: (textures: { [key: string]: Texture2D }) => void) {
+  public load() {
+    this.nextAction();
+    this.nextAction = () => {};
+    return this;
+  }
+
+  public loadAction(batch: TextureParam[], onLoad: onLoadCallback) {
     const textures: { [key: string]: Texture2D } = {};
     let loaded = 0;
-    const toLoad = this.batch.length;
+    const count = batch.length;
 
-    this.batch.forEach(([name, url, mipmap, wrapmode, filtermode]) => {
+    batch.forEach(([name, url, mipmap, wrapmode, filtermode]) => {
       this.loadTexture(name, url, mipmap, wrapmode, filtermode, tex => {
         textures[name] = tex;
         loaded++;
-        if (loaded == toLoad) {
-          this.batch = [];
+        if (loaded == count) {
           onLoad(textures);
         }
       });
@@ -54,10 +65,55 @@ export class Loader {
     return this;
   }
 
-  public isLoaded(name: string): boolean {
-    return name in this.cache;
+  public makePromise(url: string, loaded: HTMLImageElement[]) {
+    return new Promise(
+      (resolve: (loaded: HTMLImageElement[]) => void, reject) => {
+        let img = new Image();
+
+        img.addEventListener("load", e => {
+          loaded.push(img);
+          resolve(loaded);
+        });
+
+        img.addEventListener("error", () => {
+          reject(new Error(`Failed to load image's URL: ${url}`));
+        });
+        img.src = url;
+      }
+    );
   }
-  public getLoaded(name: string) {
-    return this.cache[name];
+
+  public recurse(
+    urls: string[],
+    loaded: HTMLImageElement[]
+  ): Promise<HTMLImageElement[]> {
+    if (urls.length == 0) {
+      return new Promise((resolve, reject) => {
+        resolve(loaded);
+      });
+    } else {
+      const url = urls.pop()!;
+      const p = new Promise<HTMLImageElement[]>((resolve, reject) => {
+        let img = new Image();
+        img.addEventListener("load", e => {
+          loaded.push(img);
+          resolve(loaded);
+        });
+
+        img.addEventListener("error", () => {
+          reject(new Error(`Failed to load image's URL: ${url}`));
+        });
+        img.src = url;
+      });
+
+      p.then(loaded => this.recurse(urls, loaded));
+      return p;
+    }
+  }
+
+  public loadMany(...batch: string[]) {
+    return this.recurse(batch, []);
   }
 }
+type onLoadCallback = (textures: { [key: string]: Texture2D }) => void;
+type TextureParam = [string, string, boolean, TextureWrap, TextureFilter];

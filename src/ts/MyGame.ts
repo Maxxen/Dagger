@@ -16,22 +16,22 @@ const geometry = builder
   .addQuad(
     new VertexPositionColorUV(
       new Vector3(0, 1, 0),
-      Color.White,
+      Color.WHITE,
       new Vector2(0, 0)
     ),
     new VertexPositionColorUV(
       new Vector3(1, 1, 0),
-      Color.White,
+      Color.WHITE,
       new Vector2(1, 0)
     ),
     new VertexPositionColorUV(
       new Vector3(0, 0, 0),
-      Color.White,
+      Color.WHITE,
       new Vector2(0, 1)
     ),
     new VertexPositionColorUV(
       new Vector3(1, 0, 0),
-      Color.White,
+      Color.WHITE,
       new Vector2(1, 1)
     )
   )
@@ -48,24 +48,29 @@ export class MyGame extends Game {
   }
   load(loader: Loader) {
     loader
-      .add(
-        "tex1",
-        "./assets/test2.png",
-        false,
-        TextureWrap.CLAMP_EDGE,
-        TextureFilter.LINEAR
+      .queue(
+        [
+          [
+            "tex1",
+            "./assets/test2.png",
+            false,
+            TextureWrap.CLAMP_EDGE,
+            TextureFilter.LINEAR
+          ]
+        ],
+        textures => {
+          const material = new ColorTextureMaterial();
+          const matInstance = material.getInstance();
+          matInstance.data.texture = textures["tex1"];
+          const mesh = new Mesh(geometry, matInstance);
+
+          this.scene["material"] = material;
+          this.scene["mesh"] = mesh;
+
+          this.startLoop();
+        }
       )
-      .load(textures => {
-        const material = new ColorTextureMaterial();
-        const matInstance = material.getInstance();
-        matInstance.data.texture = textures["tex1"];
-        const mesh = new Mesh(geometry, matInstance);
-
-        this.scene["material"] = material;
-        this.scene["mesh"] = mesh;
-
-        this.startLoop();
-      });
+      .load();
   }
   init() {}
   update(deltaTime: number) {

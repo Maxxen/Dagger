@@ -6,11 +6,12 @@ export class Color {
     public a: number = 1
   ) {}
 
-  public static readonly Red = new Color(1, 0, 0, 1);
-  public static readonly Green = new Color(0, 1, 0, 1);
-  public static readonly Blue = new Color(0, 0, 1, 1);
-  public static readonly White = new Color(1, 1, 1, 1);
-  public static readonly Black = new Color(0, 0, 0, 1);
+  public static readonly RED = new Color(1, 0, 0, 1);
+  public static readonly GREEN = new Color(0, 1, 0, 1);
+  public static readonly BLUE = new Color(0, 0, 1, 1);
+  public static readonly WHITE = new Color(1, 1, 1, 1);
+  public static readonly BLACK = new Color(0, 0, 0, 1);
+  public static readonly PURPLE = new Color(1, 0, 1, 1);
 
   pack(view: Uint8Array, offset: number) {
     view[offset] = Math.floor(this.r * 255);

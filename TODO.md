@@ -3,7 +3,6 @@ Geometry builder[X]
 Packable vertex types [X]
 Color [X]
 Transform class []
-Asset loader []
 
 - Proper texture rework [X]
   - Other formats, blocking loader? []

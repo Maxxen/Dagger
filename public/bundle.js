@@ -7725,8 +7725,9 @@ var forEach = function () {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var Loader_1 = __webpack_require__(/*! ./Graphics/Loader */ "./src/ts/Graphics/Loader.ts");
 var gl_1 = __webpack_require__(/*! ./Graphics/gl */ "./src/ts/Graphics/gl.ts");
+gl_1.initGL(); // We have to initialize webgl before we import further
+var Loader_1 = __webpack_require__(/*! ./Graphics/Loader */ "./src/ts/Graphics/Loader.ts");
 var Game = /** @class */ (function () {
     function Game() {
         this.deltaTime = 0;
@@ -7734,12 +7735,13 @@ var Game = /** @class */ (function () {
         this.maxFPS = 60;
         this.timestep = 1000 / 60;
         this.loader = new Loader_1.Loader();
-        gl_1.initGL();
     }
     Game.prototype.start = function () {
         this.setup();
         this.init();
         this.load(this.loader);
+    };
+    Game.prototype.startLoop = function () {
         requestAnimationFrame(this.loop.bind(this));
     };
     Game.prototype.setup = function () {
@@ -7976,14 +7978,29 @@ var GeometryBuilder = /** @class */ (function () {
         this.idx = 0;
     }
     GeometryBuilder.prototype.add = function (vertex) {
-        this.vertices[this.idx] = vertex;
+        this.vertices.push(vertex);
         this.indices[this.idx] = this.idx;
         this.idx++;
+        return this;
+    };
+    GeometryBuilder.prototype.addQuad = function (tl, tr, bl, br) {
+        this.vertices.push(tl);
+        this.vertices.push(bl);
+        this.vertices.push(br);
+        this.vertices.push(tr);
+        this.indices[this.idx] = this.idx;
+        this.indices[this.idx + 1] = this.idx + 1;
+        this.indices[this.idx + 2] = this.idx + 2;
+        this.indices[this.idx + 3] = this.idx + 2;
+        this.indices[this.idx + 4] = this.idx + 3;
+        this.indices[this.idx + 5] = this.idx;
+        this.idx += 6;
         return this;
     };
     GeometryBuilder.prototype.finalize = function () {
         var layout = this.vertices[0].getLayout();
         var buffer = new ArrayBuffer(this.vertices.length * layout.stride);
+        console.log(layout.stride);
         for (var i = 0; i < this.vertices.length; i++) {
             this.vertices[i].pack(buffer, i * layout.stride);
         }
@@ -8113,10 +8130,10 @@ exports.Loader = Loader;
 
 /***/ }),
 
-/***/ "./src/ts/Graphics/Material.ts":
-/*!*************************************!*\
-  !*** ./src/ts/Graphics/Material.ts ***!
-  \*************************************/
+/***/ "./src/ts/Graphics/Material/ColorTextureMaterial.ts":
+/*!**********************************************************!*\
+  !*** ./src/ts/Graphics/Material/ColorTextureMaterial.ts ***!
+  \**********************************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -8136,8 +8153,46 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-var Shader_1 = __webpack_require__(/*! ./Shader */ "./src/ts/Graphics/Shader.ts");
 var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
+var Shader_1 = __webpack_require__(/*! ../Shader */ "./src/ts/Graphics/Shader.ts");
+var Material_1 = __webpack_require__(/*! ./Material */ "./src/ts/Graphics/Material/Material.ts");
+var Texture2D_1 = __webpack_require__(/*! ../Texture2D */ "./src/ts/Graphics/Texture2D.ts");
+var gl_1 = __webpack_require__(/*! ../gl */ "./src/ts/Graphics/gl.ts");
+var vsSource = "\n        attribute vec4 a_position;\n        attribute vec4 a_color;\n        attribute vec2 a_textureCoord;\n\n        uniform mat4 M;\n        uniform mat4 V;\n        uniform mat4 P;\n\n        varying vec4 v_color;\n        varying mediump vec2 v_textureCoord;\n\n        void main() {\n          gl_Position = P * V * M * a_position;\n          v_color = a_color;\n          v_textureCoord = a_textureCoord;\n        }\n      ";
+var fsSource = "\n        precision mediump float;\n\n        varying vec4 v_color;\n        varying mediump vec2 v_textureCoord;\n\n        uniform sampler2D u_sampler;\n\n        void main() {\n          gl_FragColor = texture2D(u_sampler, v_textureCoord) * v_color;\n        }\n      ";
+var ColorTextureMaterial = /** @class */ (function (_super) {
+    __extends(ColorTextureMaterial, _super);
+    function ColorTextureMaterial() {
+        return _super.call(this, "ColorTextureMaterial", new Shader_1.Shader(vsSource, fsSource), {
+            model: gl_matrix_1.mat4.create(),
+            texture: new Texture2D_1.Texture2D(new Uint8Array([255, 255, 255, 255]))
+        }) || this;
+    }
+    ColorTextureMaterial.prototype.perPass = function (camera) {
+        this.shader.setMat4("V", camera.view);
+        this.shader.setMat4("P", camera.projection);
+    };
+    ColorTextureMaterial.prototype.perMesh = function (data) {
+        this.shader.setMat4("M", data.model);
+        this.shader.setTexture(gl_1.gl.TEXTURE0, "u_sampler", data.texture, 0);
+    };
+    return ColorTextureMaterial;
+}(Material_1.Material));
+exports.ColorTextureMaterial = ColorTextureMaterial;
+
+
+/***/ }),
+
+/***/ "./src/ts/Graphics/Material/Material.ts":
+/*!**********************************************!*\
+  !*** ./src/ts/Graphics/Material/Material.ts ***!
+  \**********************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
 var MaterialInstance = /** @class */ (function () {
     function MaterialInstance(name, data) {
         this.name = name;
@@ -8161,25 +8216,6 @@ var Material = /** @class */ (function () {
     return Material;
 }());
 exports.Material = Material;
-var vsSource = "\n        attribute vec4 a_position;\n        attribute vec4 a_color;\n\n        uniform mat4 M;\n        uniform mat4 V;\n        uniform mat4 P;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_Position = P * V * M * a_position;\n          v_color = a_color;\n        }\n      ";
-var fsSource = "\n        precision mediump float;\n\n        varying vec4 v_color;\n\n        void main() {\n          gl_FragColor = v_color;\n        }\n      ";
-var BasicMaterial = /** @class */ (function (_super) {
-    __extends(BasicMaterial, _super);
-    function BasicMaterial() {
-        return _super.call(this, "BasicMaterial", new Shader_1.Shader(vsSource, fsSource), {
-            model: gl_matrix_1.mat4.create()
-        }) || this;
-    }
-    BasicMaterial.prototype.perPass = function (camera) {
-        this.shader.setMat4("V", camera.view);
-        this.shader.setMat4("P", camera.projection);
-    };
-    BasicMaterial.prototype.perMesh = function (data) {
-        this.shader.setMat4("M", data.model);
-    };
-    return BasicMaterial;
-}(Material));
-exports.BasicMaterial = BasicMaterial;
 /*
 class Scene {
   mats: { [key: string]: Material } = {};
@@ -8313,6 +8349,11 @@ var Shader = /** @class */ (function () {
     Shader.prototype.setFloat = function (name, value) {
         gl_1.gl.uniform1f(this.uniformLocations[name], value);
     };
+    Shader.prototype.setTexture = function (sampler, sampleName, texture, slot) {
+        gl_1.gl.activeTexture(sampler);
+        texture.bind();
+        gl_1.gl.uniform1i(this.uniformLocations[sampleName], slot);
+    };
     return Shader;
 }());
 exports.Shader = Shader;
@@ -8355,7 +8396,7 @@ var TexturePixelType;
     TexturePixelType[TexturePixelType["UBYTE"] = gl_1.gl.UNSIGNED_BYTE] = "UBYTE";
 })(TexturePixelType = exports.TexturePixelType || (exports.TexturePixelType = {}));
 var Texture2D = /** @class */ (function () {
-    function Texture2D(image, mipmap, wrapMode, filterMode, internalFormat, srcFormat, srcType) {
+    function Texture2D(source, mipmap, wrapMode, filterMode, internalFormat, srcFormat, srcType) {
         if (mipmap === void 0) { mipmap = true; }
         if (wrapMode === void 0) { wrapMode = TextureWrap.CLAMP_EDGE; }
         if (filterMode === void 0) { filterMode = TextureFilter.LINEAR; }
@@ -8369,25 +8410,32 @@ var Texture2D = /** @class */ (function () {
         this.srcType = srcType;
         this.textureID = gl_1.gl.createTexture();
         gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
-        gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, this.srcFormat, this.srcType, image);
-        if (mipmap) {
-            if (this.isPowerOf2(image.width) && this.isPowerOf2(image.height)) {
-                gl_1.gl.generateMipmap(gl_1.gl.TEXTURE_2D);
+        if (this.sourceIsImage(source)) {
+            gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, this.srcFormat, this.srcType, source);
+            if (mipmap) {
+                if (this.isPowerOf2(source.width) && this.isPowerOf2(source.height)) {
+                    gl_1.gl.generateMipmap(gl_1.gl.TEXTURE_2D);
+                }
+                else {
+                    console.log("WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
+                        source.src +
+                        " )");
+                }
             }
-            else {
-                console.log("WARNING: Cannot generate mipmaps on non power of 2 texture ( " +
-                    image.src +
-                    " )");
-            }
+        }
+        else {
+            gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, this.internalFormat, 1, 1, 0, this.srcFormat, this.srcType, source);
         }
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_WRAP_S, this.wrapMode);
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_WRAP_T, this.wrapMode);
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_MIN_FILTER, this.filterMode);
         gl_1.gl.texParameteri(gl_1.gl.TEXTURE_2D, gl_1.gl.TEXTURE_MAG_FILTER, this.filterMode);
     }
-    Texture2D.prototype.generateDefault = function () {
-        gl_1.gl.bindTexture(gl_1.gl.TEXTURE_2D, this.textureID);
-        gl_1.gl.texImage2D(gl_1.gl.TEXTURE_2D, 0, gl_1.gl.RGBA, 1, 1, 0, gl_1.gl.RGBA, gl_1.gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]));
+    Texture2D.prototype.sourceIsImage = function (source) {
+        return source.width !== undefined;
+    };
+    Texture2D.generateDefault = function () {
+        return new Texture2D(new Uint8Array([0, 0, 255, 255]));
     };
     Texture2D.prototype.isPowerOf2 = function (number) {
         return (number & (number - 1)) === 0;
@@ -8398,6 +8446,32 @@ var Texture2D = /** @class */ (function () {
     return Texture2D;
 }());
 exports.Texture2D = Texture2D;
+
+
+/***/ }),
+
+/***/ "./src/ts/Graphics/Vector2.ts":
+/*!************************************!*\
+  !*** ./src/ts/Graphics/Vector2.ts ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var Vector2 = /** @class */ (function () {
+    function Vector2(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+    Vector2.prototype.pack = function (view, offset) {
+        view[offset] = this.x;
+        view[offset + 1] = this.y;
+    };
+    return Vector2;
+}());
+exports.Vector2 = Vector2;
 
 
 /***/ }),
@@ -8469,7 +8543,7 @@ var VertexPositionColorUV = /** @class */ (function () {
     VertexPositionColorUV.prototype.pack = function (buffer, offset) {
         this.position.pack(new Float32Array(buffer), offset / 4);
         this.color.pack(new Uint8Array(buffer), offset + 12);
-        this.uv.pack(new Float32Array(buffer), offset / 4 + 5);
+        this.uv.pack(new Float32Array(buffer), offset / 4 + 4);
     };
     VertexPositionColorUV.layout = new VertexLayout_1.VertexLayout([VertexLayout_1.AttribType.FLOAT, 3], [VertexLayout_1.AttribType.UNSIGNED_BYTE, 4], [VertexLayout_1.AttribType.FLOAT, 2]);
     return VertexPositionColorUV;
@@ -8673,32 +8747,38 @@ var Game_1 = __webpack_require__(/*! ./Game */ "./src/ts/Game.ts");
 var gl_1 = __webpack_require__(/*! ./Graphics/gl */ "./src/ts/Graphics/gl.ts");
 var Camera_1 = __webpack_require__(/*! ./Graphics/Camera */ "./src/ts/Graphics/Camera.ts");
 var Mesh_1 = __webpack_require__(/*! ./Graphics/Mesh */ "./src/ts/Graphics/Mesh.ts");
-var Material_1 = __webpack_require__(/*! ./Graphics/Material */ "./src/ts/Graphics/Material.ts");
+var ColorTextureMaterial_1 = __webpack_require__(/*! ./Graphics/Material/ColorTextureMaterial */ "./src/ts/Graphics/Material/ColorTextureMaterial.ts");
 var GeometryBuilder_1 = __webpack_require__(/*! ./Graphics/GeometryBuilder */ "./src/ts/Graphics/GeometryBuilder.ts");
-var Vertex_1 = __webpack_require__(/*! ./Graphics/Vertex */ "./src/ts/Graphics/Vertex.ts");
 var Vector3_1 = __webpack_require__(/*! ./Graphics/Vector3 */ "./src/ts/Graphics/Vector3.ts");
 var Color_1 = __webpack_require__(/*! ./Graphics/Color */ "./src/ts/Graphics/Color.ts");
+var Vector2_1 = __webpack_require__(/*! ./Graphics/Vector2 */ "./src/ts/Graphics/Vector2.ts");
+var Vertex_1 = __webpack_require__(/*! ./Graphics/Vertex */ "./src/ts/Graphics/Vertex.ts");
+var Texture2D_1 = __webpack_require__(/*! ./Graphics/Texture2D */ "./src/ts/Graphics/Texture2D.ts");
+var builder = new GeometryBuilder_1.GeometryBuilder();
+var geometry = builder
+    .addQuad(new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.White, new Vector2_1.Vector2(0, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 1, 0), Color_1.Color.White, new Vector2_1.Vector2(1, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 0, 0), Color_1.Color.White, new Vector2_1.Vector2(0, 1)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 0, 0), Color_1.Color.White, new Vector2_1.Vector2(1, 1)))
+    .finalize();
 var MyGame = /** @class */ (function (_super) {
     __extends(MyGame, _super);
     function MyGame() {
         var _this = _super.call(this) || this;
-        var builder = new GeometryBuilder_1.GeometryBuilder();
-        var geometry = builder
-            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(-1, -1, 0), Color_1.Color.Red))
-            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(1, -1, 0), Color_1.Color.Green))
-            .add(new Vertex_1.VertexPositionColor(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.Blue))
-            .finalize();
-        var material = new Material_1.BasicMaterial();
-        var mesh = new Mesh_1.Mesh(geometry, material.getInstance());
-        _this.material = material;
-        _this.mesh = mesh;
+        _this.scene = {};
         // Create Camera
         _this.camera = new Camera_1.Camera([-1, 0, -3]);
         return _this;
     }
     MyGame.prototype.load = function (loader) {
-        loader.add("tex1", "./assets/test.png").load(function (textures) {
-            console.log("loaded a texture!" + textures["tex1"]);
+        var _this = this;
+        loader
+            .add("tex1", "./assets/test2.png", false, Texture2D_1.TextureWrap.CLAMP_EDGE, Texture2D_1.TextureFilter.LINEAR)
+            .load(function (textures) {
+            var material = new ColorTextureMaterial_1.ColorTextureMaterial();
+            var matInstance = material.getInstance();
+            matInstance.data.texture = textures["tex1"];
+            var mesh = new Mesh_1.Mesh(geometry, matInstance);
+            _this.scene["material"] = material;
+            _this.scene["mesh"] = mesh;
+            _this.startLoop();
         });
     };
     MyGame.prototype.init = function () { };
@@ -8710,11 +8790,13 @@ var MyGame = /** @class */ (function (_super) {
         ];
     };
     MyGame.prototype.draw = function () {
-        this.material.use();
-        this.material.perPass(this.camera);
-        this.material.perMesh(this.mesh.material.data);
-        this.mesh.bind();
-        gl_1.gl.drawElements(gl_1.gl.TRIANGLES, this.mesh.geometry.indexCount, gl_1.gl.UNSIGNED_SHORT, 0);
+        var material = this.scene["material"];
+        var mesh = this.scene["mesh"];
+        material.use();
+        material.perPass(this.camera);
+        material.perMesh(mesh.material.data);
+        mesh.bind();
+        gl_1.gl.drawElements(gl_1.gl.TRIANGLES, mesh.geometry.indexCount, gl_1.gl.UNSIGNED_SHORT, 0);
     };
     return MyGame;
 }(Game_1.Game));
