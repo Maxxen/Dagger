@@ -10,6 +10,7 @@ import { Loader } from "./Graphics/Loader";
 import { Vector2 } from "./Graphics/Vector2";
 import { VertexPositionColorUV } from "./Graphics/Vertex";
 import { TextureWrap, TextureFilter } from "./Graphics/Texture2D";
+import { InputManager, InputEventType } from "./InputManager";
 
 const builder = new GeometryBuilder<VertexPositionColorUV>();
 const geometry = builder
@@ -40,12 +41,27 @@ const geometry = builder
 export class MyGame extends Game {
   scene: any = {};
   camera: Camera;
+  input: InputManager = new InputManager();
+
   constructor() {
     super();
 
     // Create Camera
     this.camera = new Camera();
     this.camera.position = [0, 0, 0];
+
+    this.input.subscribe(ev => {
+      if (ev.type == InputEventType.KEY_DOWN) {
+        switch (ev.key) {
+          case "left":
+            this.camera.move([-0.1, 0, 0]);
+            break;
+          case "right":
+            this.camera.move([0.1, 0, 0]);
+            break;
+        }
+      }
+    });
   }
   load(loader: Loader, startGame: () => void) {
     loader
@@ -70,12 +86,8 @@ export class MyGame extends Game {
       .catch(e => console.log(e));
   }
   init() {}
-  update(deltaTime: number) {
-    this.camera.position = [
-      Math.sin(this.lastTimestamp * 0.001) * deltaTime * 0.02,
-      0,
-      0
-    ];
+  update() {
+    this.input.update();
 
     this.camera.rotation = Math.cos(this.lastTimestamp * 0.001);
   }

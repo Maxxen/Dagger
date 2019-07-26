@@ -7737,12 +7737,12 @@ var Game = /** @class */ (function () {
         this.loader = new Loader_1.Loader();
     }
     Game.prototype.start = function () {
+        var _this = this;
         this.setup();
         this.init();
-        this.load(this.loader);
-    };
-    Game.prototype.startLoop = function () {
-        requestAnimationFrame(this.loop.bind(this));
+        this.load(this.loader, function () {
+            requestAnimationFrame(_this.loop.bind(_this));
+        });
     };
     Game.prototype.setup = function () {
         // Enable depth testing
@@ -7788,23 +7788,30 @@ exports.Game = Game;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var gl_1 = __webpack_require__(/*! ./gl */ "./src/ts/Graphics/gl.ts");
 var gl_matrix_1 = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/esm/index.js");
 var Camera = /** @class */ (function () {
-    function Camera(position) {
-        this.target = [0, 0, 0];
-        this.fieldOfView = (45 * Math.PI) / 180; // in radians
-        this.zNear = 0.1;
-        this.zFar = 100.0;
+    function Camera(left, right, bottom, top, _position) {
+        if (left === void 0) { left = -1.0; }
+        if (right === void 0) { right = 1.0; }
+        if (bottom === void 0) { bottom = -1.0; }
+        if (top === void 0) { top = 1.0; }
+        if (_position === void 0) { _position = [0, 0, 0]; }
+        this.left = left;
+        this.right = right;
+        this.bottom = bottom;
+        this.top = top;
+        this._position = _position;
+        this._rotation = 0;
         this.projectionMatrix = gl_matrix_1.mat4.create();
         this.viewMatrix = gl_matrix_1.mat4.create();
-        this._position = position;
-        this.aspect = gl_1.gl.canvas.clientWidth / gl_1.gl.canvas.clientHeight;
-        this.updateMatrices();
+        this.recalculateMatrices();
     }
-    Camera.prototype.updateMatrices = function () {
-        gl_matrix_1.mat4.perspective(this.projectionMatrix, this.fieldOfView, this.aspect, this.zNear, this.zFar);
-        gl_matrix_1.mat4.lookAt(this.viewMatrix, this._position, this.target, [0, 1, 0]);
+    Camera.prototype.recalculateMatrices = function () {
+        gl_matrix_1.mat4.ortho(this.projectionMatrix, this.left, this.right, this.bottom, this.top, -1, 1);
+        var transform = gl_matrix_1.mat4.create();
+        gl_matrix_1.mat4.translate(transform, transform, this._position);
+        gl_matrix_1.mat4.rotateZ(transform, transform, this._rotation);
+        gl_matrix_1.mat4.invert(this.viewMatrix, transform);
     };
     Object.defineProperty(Camera.prototype, "position", {
         get: function () {
@@ -7812,7 +7819,25 @@ var Camera = /** @class */ (function () {
         },
         set: function (position) {
             this._position = position;
-            this.updateMatrices();
+            this.recalculateMatrices();
+        },
+        enumerable: true,
+        configurable: true
+    });
+    Camera.prototype.move = function (delta) {
+        this.position = [
+            this._position[0] + delta[0],
+            this._position[1] + delta[1],
+            this._position[2] + delta[2]
+        ];
+    };
+    Object.defineProperty(Camera.prototype, "rotation", {
+        get: function () {
+            return this._rotation;
+        },
+        set: function (radians) {
+            this._rotation = radians;
+            this.recalculateMatrices();
         },
         enumerable: true,
         configurable: true
@@ -8097,7 +8122,7 @@ var Loader = /** @class */ (function () {
             image.src = url;
         });
     };
-    Loader.prototype.loadMany = function () {
+    Loader.prototype.load = function () {
         var batch = [];
         for (var _i = 0; _i < arguments.length; _i++) {
             batch[_i] = arguments[_i];
@@ -8715,6 +8740,117 @@ exports.initGL = initGL;
 
 /***/ }),
 
+/***/ "./src/ts/InputManager.ts":
+/*!********************************!*\
+  !*** ./src/ts/InputManager.ts ***!
+  \********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var InputEventType;
+(function (InputEventType) {
+    InputEventType[InputEventType["KEY_PRESSED"] = 0] = "KEY_PRESSED";
+    InputEventType[InputEventType["KEY_DOWN"] = 1] = "KEY_DOWN";
+    InputEventType[InputEventType["KEY_RELEASED"] = 2] = "KEY_RELEASED";
+})(InputEventType = exports.InputEventType || (exports.InputEventType = {}));
+var InputEvent = /** @class */ (function () {
+    function InputEvent(type, key, meta, shift, ctrl, alt) {
+        this.type = type;
+        this.key = key;
+        this.meta = meta;
+        this.shift = shift;
+        this.ctrl = ctrl;
+        this.alt = alt;
+    }
+    return InputEvent;
+}());
+exports.InputEvent = InputEvent;
+var standardKeyMap = {
+    left: "left",
+    right: "right",
+    up: "up",
+    down: "down",
+    w: "up",
+    a: "left",
+    s: "down",
+    d: "right",
+    space: "jump"
+};
+var InputManager = /** @class */ (function () {
+    function InputManager(keymap) {
+        this.listeners = [];
+        this.keyPressed = {};
+        this.keyDown = {};
+        this.keyReleased = {};
+        document.addEventListener("keydown", this.keyDownHandler.bind(this));
+        document.addEventListener("keyup", this.keyUpHandler.bind(this));
+        if (keymap) {
+            this.keymap = keymap;
+            this.defaultKeyMap = keymap;
+        }
+        else {
+            this.keymap = standardKeyMap;
+            this.defaultKeyMap = standardKeyMap;
+        }
+    }
+    InputManager.prototype.resetToDefaults = function () {
+        this.keymap = this.defaultKeyMap;
+    };
+    InputManager.prototype.keyWasPressed = function (key) {
+        if (!this.keyDown[key]) {
+            this.keyPressed[key] = true;
+            this.keyDown[key] = true;
+            //send keyPressed event
+            this.triggerEvent(InputEventType.KEY_PRESSED, key);
+        }
+    };
+    InputManager.prototype.update = function () {
+        for (var key in this.keyDown) {
+            this.keyPressed[key] = false;
+            //send keyDown event
+            if (this.keyDown[key]) {
+                this.triggerEvent(InputEventType.KEY_DOWN, key);
+            }
+        }
+        for (var key in this.keyReleased) {
+            this.keyReleased[key] = false;
+        }
+    };
+    InputManager.prototype.keyWasReleased = function (key) {
+        this.keyDown[key] = false;
+        this.keyReleased[key] = true;
+        // send key released event
+        this.triggerEvent(InputEventType.KEY_RELEASED, key);
+    };
+    InputManager.prototype.keyDownHandler = function (event) {
+        // I think?
+        event.stopPropagation();
+        this.keyWasPressed(event.key);
+    };
+    InputManager.prototype.keyUpHandler = function (event) {
+        // I think?
+        event.stopPropagation();
+        this.keyWasReleased(event.key);
+    };
+    InputManager.prototype.triggerEvent = function (type, key) {
+        if (key in this.keymap) {
+            var ev_1 = new InputEvent(type, this.keymap[key], false, false, false, false);
+            this.listeners.forEach(function (listener) { return listener(ev_1); });
+        }
+    };
+    InputManager.prototype.subscribe = function (handler) {
+        this.listeners.push(handler);
+    };
+    return InputManager;
+}());
+exports.InputManager = InputManager;
+
+
+/***/ }),
+
 /***/ "./src/ts/MyGame.ts":
 /*!**************************!*\
   !*** ./src/ts/MyGame.ts ***!
@@ -8749,6 +8885,7 @@ var Color_1 = __webpack_require__(/*! ./Graphics/Color */ "./src/ts/Graphics/Col
 var Vector2_1 = __webpack_require__(/*! ./Graphics/Vector2 */ "./src/ts/Graphics/Vector2.ts");
 var Vertex_1 = __webpack_require__(/*! ./Graphics/Vertex */ "./src/ts/Graphics/Vertex.ts");
 var Texture2D_1 = __webpack_require__(/*! ./Graphics/Texture2D */ "./src/ts/Graphics/Texture2D.ts");
+var InputManager_1 = __webpack_require__(/*! ./InputManager */ "./src/ts/InputManager.ts");
 var builder = new GeometryBuilder_1.GeometryBuilder();
 var geometry = builder
     .addQuad(new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 1)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 1)))
@@ -8758,14 +8895,28 @@ var MyGame = /** @class */ (function (_super) {
     function MyGame() {
         var _this = _super.call(this) || this;
         _this.scene = {};
+        _this.input = new InputManager_1.InputManager();
         // Create Camera
-        _this.camera = new Camera_1.Camera([-1, 0, -3]);
+        _this.camera = new Camera_1.Camera();
+        _this.camera.position = [0, 0, 0];
+        _this.input.subscribe(function (ev) {
+            if (ev.type == InputManager_1.InputEventType.KEY_DOWN) {
+                switch (ev.key) {
+                    case "left":
+                        _this.camera.move([-0.1, 0, 0]);
+                        break;
+                    case "right":
+                        _this.camera.move([0.1, 0, 0]);
+                        break;
+                }
+            }
+        });
         return _this;
     }
-    MyGame.prototype.load = function (loader) {
+    MyGame.prototype.load = function (loader, startGame) {
         var _this = this;
         loader
-            .loadMany([
+            .load([
             "tex1",
             "assets/test2.png",
             false,
@@ -8779,17 +8930,14 @@ var MyGame = /** @class */ (function (_super) {
             var mesh = new Mesh_1.Mesh(geometry, matInstance);
             _this.scene["material"] = material;
             _this.scene["mesh"] = mesh;
-            _this.startLoop();
+            startGame();
         })
             .catch(function (e) { return console.log(e); });
     };
     MyGame.prototype.init = function () { };
-    MyGame.prototype.update = function (deltaTime) {
-        this.camera.position = [
-            Math.sin(this.lastTimestamp * 0.001) * deltaTime * 0.2,
-            Math.cos(this.lastTimestamp * 0.001) * deltaTime * 0.2,
-            3
-        ];
+    MyGame.prototype.update = function () {
+        this.input.update();
+        this.camera.rotation = Math.cos(this.lastTimestamp * 0.001);
     };
     MyGame.prototype.draw = function () {
         var material = this.scene["material"];

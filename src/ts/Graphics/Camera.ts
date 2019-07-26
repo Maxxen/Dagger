@@ -42,6 +42,14 @@ export class Camera {
     this.recalculateMatrices();
   }
 
+  public move(delta: [number, number, number]) {
+    this.position = [
+      this._position[0] + delta[0],
+      this._position[1] + delta[1],
+      this._position[2] + delta[2]
+    ];
+  }
+
   public get rotation(): number {
     return this._rotation;
   }
