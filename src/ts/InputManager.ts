@@ -54,15 +54,6 @@ export class InputManager {
     this.keymap = this.defaultKeyMap;
   }
 
-  private keyWasPressed(key: string): void {
-    if (!this.keyDown[key]) {
-      this.keyPressed[key] = true;
-      this.keyDown[key] = true;
-      //send keyPressed event
-      this.triggerEvent(InputEventType.KEY_PRESSED, key);
-    }
-  }
-
   public update() {
     for (const key in this.keyDown) {
       this.keyPressed[key] = false;
@@ -76,23 +67,30 @@ export class InputManager {
     }
   }
 
-  private keyWasReleased(key: string): void {
-    this.keyDown[key] = false;
-    this.keyReleased[key] = true;
-    // send key released event
-    this.triggerEvent(InputEventType.KEY_RELEASED, key);
-  }
-
   private keyDownHandler(event: KeyboardEvent) {
     // I think?
     event.stopPropagation();
-    this.keyWasPressed(event.key);
+
+    // Handle
+    const key = event.key;
+    if (!this.keyDown[key]) {
+      this.keyPressed[key] = true;
+      this.keyDown[key] = true;
+      //send keyPressed event
+      this.triggerEvent(InputEventType.KEY_PRESSED, key);
+    }
   }
 
   private keyUpHandler(event: KeyboardEvent) {
     // I think?
     event.stopPropagation();
-    this.keyWasReleased(event.key);
+
+    // Handle
+    const key = event.key;
+    this.keyDown[key] = false;
+    this.keyReleased[key] = true;
+    // send key released event
+    this.triggerEvent(InputEventType.KEY_RELEASED, key);
   }
 
   private triggerEvent(type: InputEventType, key: string) {
