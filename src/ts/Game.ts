@@ -13,11 +13,9 @@ export abstract class Game {
   public start() {
     this.setup();
     this.init();
-    this.load(this.loader);
-  }
-
-  public startLoop() {
-    requestAnimationFrame(this.loop.bind(this));
+    this.load(this.loader, () => {
+      requestAnimationFrame(this.loop.bind(this));
+    });
   }
 
   private setup() {
@@ -53,7 +51,7 @@ export abstract class Game {
   }
 
   abstract init(): void;
-  abstract load(loader: Loader): void;
+  abstract load(loader: Loader, startGame: () => void): void;
   abstract update(deltaTime: number): void;
   abstract draw(): void;
 }

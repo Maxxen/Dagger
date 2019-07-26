@@ -44,9 +44,10 @@ export class MyGame extends Game {
     super();
 
     // Create Camera
-    this.camera = new Camera([-1, 0, -3]);
+    this.camera = new Camera();
+    this.camera.position = [0, 0, 0];
   }
-  load(loader: Loader) {
+  load(loader: Loader, startGame: () => void) {
     loader
       .load([
         "tex1",
@@ -64,17 +65,19 @@ export class MyGame extends Game {
         this.scene["material"] = material;
         this.scene["mesh"] = mesh;
 
-        this.startLoop();
+        startGame();
       })
       .catch(e => console.log(e));
   }
   init() {}
   update(deltaTime: number) {
     this.camera.position = [
-      Math.sin(this.lastTimestamp * 0.001) * deltaTime * 0.2,
-      Math.cos(this.lastTimestamp * 0.001) * deltaTime * 0.2,
-      3
+      Math.sin(this.lastTimestamp * 0.001) * deltaTime * 0.02,
+      0,
+      0
     ];
+
+    this.camera.rotation = Math.cos(this.lastTimestamp * 0.001);
   }
 
   draw() {

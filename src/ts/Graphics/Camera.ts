@@ -1,42 +1,54 @@
-import { gl } from "./gl";
 import { mat4 } from "gl-matrix";
 
 export class Camera {
-  _position: number[];
-  target: number[] = [0, 0, 0];
+  private _rotation: number = 0;
 
-  fieldOfView = (45 * Math.PI) / 180; // in radians
-  aspect: number;
-  zNear: number = 0.1;
-  zFar: number = 100.0;
-  projectionMatrix: mat4 = mat4.create();
-  viewMatrix: mat4 = mat4.create();
+  private projectionMatrix: mat4 = mat4.create();
+  private viewMatrix: mat4 = mat4.create();
 
-  constructor(position: number[]) {
-    this._position = position;
-    this.aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
-    this.updateMatrices();
+  constructor(
+    private left: number = -1.0,
+    private right: number = 1.0,
+    private bottom: number = -1.0,
+    private top: number = 1.0,
+    private _position: [number, number, number] = [0, 0, 0]
+  ) {
+    this.recalculateMatrices();
   }
 
-  private updateMatrices() {
-    mat4.perspective(
+  private recalculateMatrices() {
+    mat4.ortho(
       this.projectionMatrix,
-      this.fieldOfView,
-      this.aspect,
-      this.zNear,
-      this.zFar
+      this.left,
+      this.right,
+      this.bottom,
+      this.top,
+      -1,
+      1
     );
 
-    mat4.lookAt(this.viewMatrix, this._position, this.target, [0, 1, 0]);
+    const transform = mat4.create();
+    mat4.translate(transform, transform, this._position);
+    mat4.rotateZ(transform, transform, this._rotation);
+    mat4.invert(this.viewMatrix, transform);
   }
 
-  public get position(): number[] {
+  public get position(): [number, number, number] {
     return this._position;
   }
 
-  public set position(position: number[]) {
+  public set position(position: [number, number, number]) {
     this._position = position;
-    this.updateMatrices();
+    this.recalculateMatrices();
+  }
+
+  public get rotation(): number {
+    return this._rotation;
+  }
+
+  public set rotation(radians: number) {
+    this._rotation = radians;
+    this.recalculateMatrices();
   }
 
   public get projection() {
