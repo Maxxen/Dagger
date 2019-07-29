@@ -1,21 +1,20 @@
-import { initGL, gl } from "./Graphics/gl";
-initGL(); // We have to initialize webgl before we import further
-import { Loader } from "./Graphics/Loader";
+import { gl } from "./Graphics/gl";
+import { Scene, SceneManager } from "./Scene";
 
-export abstract class Game {
+export class Game {
   private deltaTime: number = 0;
   protected lastTimestamp: number = 0;
   private maxFPS: number = 60;
   private timestep: number = 1000 / 60;
-  private loader: Loader = new Loader();
+  public readonly sceneManager: SceneManager;
 
-  constructor() {}
+  constructor(scene: Scene) {
+    this.sceneManager = new SceneManager(scene);
+  }
+
   public start() {
     this.setup();
-    this.init();
-    this.load(this.loader, () => {
-      requestAnimationFrame(this.loop.bind(this));
-    });
+    requestAnimationFrame(this.loop.bind(this));
   }
 
   private setup() {
@@ -35,12 +34,12 @@ export abstract class Game {
 
     // Simulate the total elapsed time in fixed-size chunks
     while (this.deltaTime >= this.timestep) {
-      this.update(this.timestep);
+      this.sceneManager.update(this.timestep);
       this.deltaTime -= this.timestep;
     }
 
     this.clear();
-    this.draw();
+    this.sceneManager.draw();
     requestAnimationFrame(this.loop.bind(this));
   }
 
@@ -49,9 +48,4 @@ export abstract class Game {
     gl.clearColor(0, 0, 0.4, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
-
-  abstract init(): void;
-  abstract load(loader: Loader, startGame: () => void): void;
-  abstract update(deltaTime: number): void;
-  abstract draw(): void;
 }

@@ -7727,22 +7727,18 @@ var forEach = function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 var gl_1 = __webpack_require__(/*! ./Graphics/gl */ "./src/ts/Graphics/gl.ts");
 gl_1.initGL(); // We have to initialize webgl before we import further
-var Loader_1 = __webpack_require__(/*! ./Graphics/Loader */ "./src/ts/Graphics/Loader.ts");
+var Scene_1 = __webpack_require__(/*! ./Scene */ "./src/ts/Scene.ts");
 var Game = /** @class */ (function () {
-    function Game() {
+    function Game(scene) {
         this.deltaTime = 0;
         this.lastTimestamp = 0;
         this.maxFPS = 60;
         this.timestep = 1000 / 60;
-        this.loader = new Loader_1.Loader();
+        this.sceneManager = new Scene_1.SceneManager(scene);
     }
     Game.prototype.start = function () {
-        var _this = this;
         this.setup();
-        this.init();
-        this.load(this.loader, function () {
-            requestAnimationFrame(_this.loop.bind(_this));
-        });
+        requestAnimationFrame(this.loop.bind(this));
     };
     Game.prototype.setup = function () {
         // Enable depth testing
@@ -7759,11 +7755,11 @@ var Game = /** @class */ (function () {
         this.lastTimestamp = timestamp;
         // Simulate the total elapsed time in fixed-size chunks
         while (this.deltaTime >= this.timestep) {
-            this.update(this.timestep);
+            this.sceneManager.update(this.timestep);
             this.deltaTime -= this.timestep;
         }
         this.clear();
-        this.draw();
+        this.sceneManager.draw();
         requestAnimationFrame(this.loop.bind(this));
     };
     Game.prototype.clear = function () {
@@ -8284,6 +8280,28 @@ exports.Mesh = Mesh;
 
 /***/ }),
 
+/***/ "./src/ts/Graphics/Quad.ts":
+/*!*********************************!*\
+  !*** ./src/ts/Graphics/Quad.ts ***!
+  \*********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var GeometryBuilder_1 = __webpack_require__(/*! ./GeometryBuilder */ "./src/ts/Graphics/GeometryBuilder.ts");
+var Vertex_1 = __webpack_require__(/*! ./Vertex */ "./src/ts/Graphics/Vertex.ts");
+var Color_1 = __webpack_require__(/*! ./Color */ "./src/ts/Graphics/Color.ts");
+var Vector3_1 = __webpack_require__(/*! ./Vector3 */ "./src/ts/Graphics/Vector3.ts");
+var Vector2_1 = __webpack_require__(/*! ./Vector2 */ "./src/ts/Graphics/Vector2.ts");
+exports.QUAD = new GeometryBuilder_1.GeometryBuilder()
+    .addQuad(new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 1)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 1)))
+    .finalize();
+
+
+/***/ }),
+
 /***/ "./src/ts/Graphics/Shader.ts":
 /*!***********************************!*\
   !*** ./src/ts/Graphics/Shader.ts ***!
@@ -8799,14 +8817,6 @@ var InputManager = /** @class */ (function () {
     InputManager.prototype.resetToDefaults = function () {
         this.keymap = this.defaultKeyMap;
     };
-    InputManager.prototype.keyWasPressed = function (key) {
-        if (!this.keyDown[key]) {
-            this.keyPressed[key] = true;
-            this.keyDown[key] = true;
-            //send keyPressed event
-            this.triggerEvent(InputEventType.KEY_PRESSED, key);
-        }
-    };
     InputManager.prototype.update = function () {
         for (var key in this.keyDown) {
             this.keyPressed[key] = false;
@@ -8819,21 +8829,27 @@ var InputManager = /** @class */ (function () {
             this.keyReleased[key] = false;
         }
     };
-    InputManager.prototype.keyWasReleased = function (key) {
-        this.keyDown[key] = false;
-        this.keyReleased[key] = true;
-        // send key released event
-        this.triggerEvent(InputEventType.KEY_RELEASED, key);
-    };
     InputManager.prototype.keyDownHandler = function (event) {
         // I think?
         event.stopPropagation();
-        this.keyWasPressed(event.key);
+        // Handle
+        var key = event.key;
+        if (!this.keyDown[key]) {
+            this.keyPressed[key] = true;
+            this.keyDown[key] = true;
+            //send keyPressed event
+            this.triggerEvent(InputEventType.KEY_PRESSED, key);
+        }
     };
     InputManager.prototype.keyUpHandler = function (event) {
         // I think?
         event.stopPropagation();
-        this.keyWasReleased(event.key);
+        // Handle
+        var key = event.key;
+        this.keyDown[key] = false;
+        this.keyReleased[key] = true;
+        // send key released event
+        this.triggerEvent(InputEventType.KEY_RELEASED, key);
     };
     InputManager.prototype.triggerEvent = function (type, key) {
         if (key in this.keymap) {
@@ -8851,10 +8867,10 @@ exports.InputManager = InputManager;
 
 /***/ }),
 
-/***/ "./src/ts/MyGame.ts":
-/*!**************************!*\
-  !*** ./src/ts/MyGame.ts ***!
-  \**************************/
+/***/ "./src/ts/MyScene.ts":
+/*!***************************!*\
+  !*** ./src/ts/MyScene.ts ***!
+  \***************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -8874,30 +8890,21 @@ var __extends = (this && this.__extends) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-var Game_1 = __webpack_require__(/*! ./Game */ "./src/ts/Game.ts");
 var gl_1 = __webpack_require__(/*! ./Graphics/gl */ "./src/ts/Graphics/gl.ts");
 var Camera_1 = __webpack_require__(/*! ./Graphics/Camera */ "./src/ts/Graphics/Camera.ts");
 var Mesh_1 = __webpack_require__(/*! ./Graphics/Mesh */ "./src/ts/Graphics/Mesh.ts");
-var ColorTextureMaterial_1 = __webpack_require__(/*! ./Graphics/Material/ColorTextureMaterial */ "./src/ts/Graphics/Material/ColorTextureMaterial.ts");
-var GeometryBuilder_1 = __webpack_require__(/*! ./Graphics/GeometryBuilder */ "./src/ts/Graphics/GeometryBuilder.ts");
-var Vector3_1 = __webpack_require__(/*! ./Graphics/Vector3 */ "./src/ts/Graphics/Vector3.ts");
-var Color_1 = __webpack_require__(/*! ./Graphics/Color */ "./src/ts/Graphics/Color.ts");
-var Vector2_1 = __webpack_require__(/*! ./Graphics/Vector2 */ "./src/ts/Graphics/Vector2.ts");
-var Vertex_1 = __webpack_require__(/*! ./Graphics/Vertex */ "./src/ts/Graphics/Vertex.ts");
 var Texture2D_1 = __webpack_require__(/*! ./Graphics/Texture2D */ "./src/ts/Graphics/Texture2D.ts");
 var InputManager_1 = __webpack_require__(/*! ./InputManager */ "./src/ts/InputManager.ts");
-var builder = new GeometryBuilder_1.GeometryBuilder();
-var geometry = builder
-    .addQuad(new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 1, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 0)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(0, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(0, 1)), new Vertex_1.VertexPositionColorUV(new Vector3_1.Vector3(1, 0, 0), Color_1.Color.WHITE, new Vector2_1.Vector2(1, 1)))
-    .finalize();
-var MyGame = /** @class */ (function (_super) {
-    __extends(MyGame, _super);
-    function MyGame() {
-        var _this = _super.call(this) || this;
-        _this.scene = {};
+var Quad_1 = __webpack_require__(/*! ./Graphics/Quad */ "./src/ts/Graphics/Quad.ts");
+var ColorTextureMaterial_1 = __webpack_require__(/*! ./Graphics/Material/ColorTextureMaterial */ "./src/ts/Graphics/Material/ColorTextureMaterial.ts");
+var Scene_1 = __webpack_require__(/*! ./Scene */ "./src/ts/Scene.ts");
+var MyScene = /** @class */ (function (_super) {
+    __extends(MyScene, _super);
+    function MyScene() {
+        var _this = _super.call(this, "MyScene", new Camera_1.Camera()) || this;
         _this.input = new InputManager_1.InputManager();
+        _this.stuff = {};
         // Create Camera
-        _this.camera = new Camera_1.Camera();
         _this.camera.position = [0, 0, 0];
         _this.input.subscribe(function (ev) {
             if (ev.type == InputManager_1.InputEventType.KEY_DOWN) {
@@ -8913,9 +8920,9 @@ var MyGame = /** @class */ (function (_super) {
         });
         return _this;
     }
-    MyGame.prototype.load = function (loader, startGame) {
+    MyScene.prototype.load = function (onDoneLoading) {
         var _this = this;
-        loader
+        this.content
             .load([
             "tex1",
             "assets/test2.png",
@@ -8927,30 +8934,82 @@ var MyGame = /** @class */ (function (_super) {
             var material = new ColorTextureMaterial_1.ColorTextureMaterial();
             var matInstance = material.getInstance();
             matInstance.data.texture = textures[0];
-            var mesh = new Mesh_1.Mesh(geometry, matInstance);
-            _this.scene["material"] = material;
-            _this.scene["mesh"] = mesh;
-            startGame();
+            var mesh = new Mesh_1.Mesh(Quad_1.QUAD, matInstance);
+            _this.stuff["material"] = material;
+            _this.stuff["mesh"] = mesh;
+            onDoneLoading();
         })
             .catch(function (e) { return console.log(e); });
     };
-    MyGame.prototype.init = function () { };
-    MyGame.prototype.update = function () {
+    MyScene.prototype.init = function () { };
+    MyScene.prototype.update = function () {
         this.input.update();
-        this.camera.rotation = Math.cos(this.lastTimestamp * 0.001);
     };
-    MyGame.prototype.draw = function () {
-        var material = this.scene["material"];
-        var mesh = this.scene["mesh"];
+    MyScene.prototype.draw = function () {
+        var material = this.stuff["material"];
+        var mesh = this.stuff["mesh"];
         material.use();
         material.perPass(this.camera);
         material.perMesh(mesh.material.data);
         mesh.bind();
         gl_1.gl.drawElements(gl_1.gl.TRIANGLES, mesh.geometry.indexCount, gl_1.gl.UNSIGNED_SHORT, 0);
     };
-    return MyGame;
-}(Game_1.Game));
-exports.MyGame = MyGame;
+    return MyScene;
+}(Scene_1.Scene));
+exports.MyScene = MyScene;
+
+
+/***/ }),
+
+/***/ "./src/ts/Scene.ts":
+/*!*************************!*\
+  !*** ./src/ts/Scene.ts ***!
+  \*************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var Loader_1 = __webpack_require__(/*! ./Graphics/Loader */ "./src/ts/Graphics/Loader.ts");
+var Scene = /** @class */ (function () {
+    function Scene(name, camera, content) {
+        if (content === void 0) { content = new Loader_1.Loader(); }
+        this.name = name;
+        this.camera = camera;
+        this.content = content;
+    }
+    return Scene;
+}());
+exports.Scene = Scene;
+var SceneManager = /** @class */ (function () {
+    function SceneManager(scene) {
+        this.scenes = {};
+        scene.load(function () { });
+        this.currentScene = scene;
+        this.scenes[scene.name] = scene;
+    }
+    SceneManager.prototype.switchScene = function (name, onDoneLoading) {
+        var _this = this;
+        if (onDoneLoading === void 0) { onDoneLoading = function () { }; }
+        var toLoad = this.scenes[name];
+        toLoad.load(function () {
+            onDoneLoading;
+            _this.currentScene = _this.scenes[name];
+        });
+    };
+    SceneManager.prototype.addScene = function (scene) {
+        this.scenes[scene.name] = scene;
+    };
+    SceneManager.prototype.update = function (deltaTime) {
+        this.currentScene.update(deltaTime);
+    };
+    SceneManager.prototype.draw = function () {
+        this.currentScene.draw();
+    };
+    return SceneManager;
+}());
+exports.SceneManager = SceneManager;
 
 
 /***/ }),
@@ -8965,9 +9024,11 @@ exports.MyGame = MyGame;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var MyGame_1 = __webpack_require__(/*! ./MyGame */ "./src/ts/MyGame.ts");
+var MyScene_1 = __webpack_require__(/*! ./MyScene */ "./src/ts/MyScene.ts");
+var Game_1 = __webpack_require__(/*! ./Game */ "./src/ts/Game.ts");
 console.log("Hello world!");
-var game = new MyGame_1.MyGame();
+var scene = new MyScene_1.MyScene();
+var game = new Game_1.Game(scene);
 game.start();
 
 

@@ -37,6 +37,8 @@ export class InputManager {
   private keyDown: { [key: string]: boolean } = {};
   private keyReleased: { [key: string]: boolean } = {};
 
+  private eventQueue: InputEvent[] = [];
+
   constructor(keymap?: KeyMap) {
     document.addEventListener("keydown", this.keyDownHandler.bind(this));
     document.addEventListener("keyup", this.keyUpHandler.bind(this));
@@ -57,14 +59,31 @@ export class InputManager {
   public update() {
     for (const key in this.keyDown) {
       this.keyPressed[key] = false;
-      //send keyDown event
+      //queue keyDown event
       if (this.keyDown[key]) {
-        this.triggerEvent(InputEventType.KEY_DOWN, key);
+        this.queueEvent(InputEventType.KEY_DOWN, key);
       }
     }
     for (const key in this.keyReleased) {
       this.keyReleased[key] = false;
     }
+
+    /*
+      Trigger all queued events and empty queue
+
+      TODO:
+
+      Is this problematic? What happens if we receive two events of the same type
+      in the same frame. If e.g. the player moves on left key pressed, and we tap 
+      the key to press twice in a frame, will the player move two steps instead of one?
+
+      Maybe events should be filtered before they can be added to the queue to make sure
+      we dont send the same event twice in a single frame.
+    */
+    this.eventQueue.forEach(ev => {
+      this.listeners.forEach(listener => listener(ev));
+    });
+    this.eventQueue = [];
   }
 
   private keyDownHandler(event: KeyboardEvent) {
@@ -76,8 +95,8 @@ export class InputManager {
     if (!this.keyDown[key]) {
       this.keyPressed[key] = true;
       this.keyDown[key] = true;
-      //send keyPressed event
-      this.triggerEvent(InputEventType.KEY_PRESSED, key);
+      //queue keyPressed event
+      this.queueEvent(InputEventType.KEY_PRESSED, key);
     }
   }
 
@@ -89,21 +108,15 @@ export class InputManager {
     const key = event.key;
     this.keyDown[key] = false;
     this.keyReleased[key] = true;
-    // send key released event
-    this.triggerEvent(InputEventType.KEY_RELEASED, key);
+    // queue key released event
+    this.queueEvent(InputEventType.KEY_RELEASED, key);
   }
 
-  private triggerEvent(type: InputEventType, key: string) {
+  private queueEvent(type: InputEventType, key: string) {
     if (key in this.keymap) {
-      const ev = new InputEvent(
-        type,
-        this.keymap[key],
-        false,
-        false,
-        false,
-        false
+      this.eventQueue.push(
+        new InputEvent(type, this.keymap[key], false, false, false, false)
       );
-      this.listeners.forEach(listener => listener(ev));
     }
   }
 
