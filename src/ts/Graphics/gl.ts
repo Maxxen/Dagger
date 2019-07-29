@@ -1,10 +1,9 @@
-export declare var gl: WebGLRenderingContext;
-export declare var glext: OES_vertex_array_object;
+export declare var gl: WebGL2RenderingContext;
 
 export function initGL() {
   const canvas = <HTMLCanvasElement>document.querySelector("#glCanvas")!;
   // Initialize the GL context
-  const ctx = canvas.getContext("webgl");
+  const ctx = canvas.getContext("webgl2") as WebGL2RenderingContext;
 
   // Only continue if WebGL is available and working
   if (ctx === null) {
@@ -13,13 +12,5 @@ export function initGL() {
     );
     return;
   }
-  const ext = ctx.getExtension("OES_vertex_array_object");
-
-  if (ext === null) {
-    alert("OES Vertex array object extension not supported!");
-    return;
-  }
-
   gl = ctx;
-  glext = ext;
 }

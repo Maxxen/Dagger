@@ -1,9 +1,9 @@
 import { VertexBuffer } from "./VertexBuffer";
-import { glext, gl } from "./gl";
+import { gl } from "./gl";
 import { IndexBuffer } from "./IndexBuffer";
 
 export class Geometry {
-  private id: WebGLVertexArrayObjectOES;
+  private id: WebGLVertexArrayObject;
   public vertexBuffer: VertexBuffer | null = null;
   public indexBuffer: IndexBuffer | null = null;
 
@@ -11,7 +11,7 @@ export class Geometry {
   private _indexCount = 0;
 
   constructor(vertexBuffer?: VertexBuffer, indexBuffer?: IndexBuffer) {
-    this.id = glext.createVertexArrayOES()!;
+    this.id = gl.createVertexArray()!;
 
     if (indexBuffer) {
       this.setIndexBuffer(indexBuffer);
@@ -22,10 +22,10 @@ export class Geometry {
   }
 
   public bind() {
-    glext.bindVertexArrayOES(this.id);
+    gl.bindVertexArray(this.id);
   }
   public unbind() {
-    glext.bindVertexArrayOES(null);
+    gl.bindVertexArray(null);
   }
 
   public setIndexBuffer(indexBuffer: IndexBuffer) {

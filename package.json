@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@types/gl-matrix": "^2.4.5",
+    "@types/webgl2": "0.0.5",
     "gl-matrix": "^3.0.0"
   }
 }
