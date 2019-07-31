@@ -1,22 +1,16 @@
-import { gl } from "./Graphics/gl";
-import { Camera } from "./Graphics/Camera";
-import { Mesh } from "./Graphics/Mesh";
-import { TextureWrap, TextureFilter } from "./Graphics/Texture2D";
-import { InputManager, InputEventType } from "./InputManager";
-import { QUAD } from "./Graphics/Quad";
-import { ColorTextureMaterial } from "./Graphics/Material/ColorTextureMaterial";
+import { InputEventType } from "./InputManager";
 import { Scene } from "./Scene";
-import { ContentLoader } from "./Graphics/ContentLoader";
+import { ContentLoader } from "./ContentLoader";
+import { Game } from "./Game";
+import { Sprite } from "./Graphics/Sprite";
 
 export class MyScene extends Scene {
-  input: InputManager = new InputManager();
-
   constructor() {
-    super("MyScene", new Camera());
-    // Create Camera
+    super("MyScene");
+
     this.camera.position = [0, 0, 0];
 
-    this.input.subscribe(ev => {
+    Game.instance.input.subscribe(ev => {
       if (ev.type == InputEventType.KEY_DOWN) {
         switch (ev.key) {
           case "left":
@@ -29,43 +23,17 @@ export class MyScene extends Scene {
       }
     });
   }
-  load(loader: ContentLoader) {
-    loader
-      .add(
-        "tex1",
-        "assets/test2.png",
-        false,
-        TextureWrap.REPEAT,
-        TextureFilter.NEAREST
-      )
-      .load();
-  }
-  init() {
-    const tex = this.content.get("tex1")!;
-    const material = new ColorTextureMaterial();
-    const matInstance = material.getInstance();
-    matInstance.data.texture = tex;
-    this.world["material"] = material;
-    this.world["mesh"] = new Mesh(QUAD, matInstance);
-  }
-  update() {
-    this.input.update();
-  }
-  draw() {
-    const material = this.world["material"];
-    const mesh = this.world["mesh"];
 
-    material.use();
-    material.perPass(this.camera);
-    material.perMesh(mesh.material.data);
-    mesh.bind();
-    gl.drawElements(
-      gl.TRIANGLES,
-      mesh.geometry.indexCount,
-      gl.UNSIGNED_SHORT,
-      0
-    );
+  load(loader: ContentLoader) {
+    loader.add("tex1", "assets/test2.png").load();
   }
+
+  init() {
+    const tex = Game.instance.content.get("tex1")!;
+
+    this.gameObjects.push(new Sprite(tex));
+  }
+  update() {}
 
   unload() {}
 }

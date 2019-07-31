@@ -6,7 +6,7 @@ export class Shader {
   private program: WebGLProgram;
   private uniformLocations: { [key: string]: WebGLUniformLocation };
 
-  constructor(vSource: string, fSource: string) {
+  constructor(public readonly name: string, vSource: string, fSource: string) {
     // Compile shaders
     const vert = this.compileShader(vSource, gl.VERTEX_SHADER)!;
     const frag = this.compileShader(fSource, gl.FRAGMENT_SHADER)!;
@@ -83,6 +83,16 @@ export class Shader {
 
   public setFloat(name: string, value: number) {
     gl.uniform1f(this.uniformLocations[name], value);
+  }
+
+  public setVec4(name: string, value: [number, number, number, number]) {
+    gl.uniform4f(
+      this.uniformLocations[name],
+      value[0],
+      value[1],
+      value[2],
+      value[3]
+    );
   }
 
   public setTexture(

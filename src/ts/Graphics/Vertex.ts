@@ -49,3 +49,21 @@ export class VertexPositionColorUV implements Vertex {
     this.uv.pack(new Float32Array(buffer), offset / 4 + 4);
   }
 }
+
+export class VertexPositionUV implements Vertex {
+  static layout = new VertexLayout(
+    [AttribType.FLOAT, 3],
+    [AttribType.FLOAT, 2]
+  );
+
+  constructor(public position: Vector3, public uv: Vector2) {}
+
+  getLayout() {
+    return VertexPositionUV.layout;
+  }
+
+  pack(buffer: ArrayBuffer, offset: number): void {
+    this.position.pack(new Float32Array(buffer), offset / 4);
+    this.uv.pack(new Float32Array(buffer), offset / 4 + 3);
+  }
+}

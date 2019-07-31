@@ -40,7 +40,6 @@ export class GeometryBuilder<V extends Vertex> {
     const layout = this.vertices[0].getLayout();
     const buffer = new ArrayBuffer(this.vertices.length * layout.stride);
 
-    console.log(layout.stride);
     for (let i = 0; i < this.vertices.length; i++) {
       this.vertices[i].pack(buffer, i * layout.stride);
     }

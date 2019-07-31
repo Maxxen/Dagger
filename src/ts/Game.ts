@@ -1,15 +1,34 @@
 import { gl } from "./Graphics/gl";
-import { Scene, SceneManager } from "./Scene";
+import { Scene, SceneManager, DefaultScene } from "./Scene";
+import { ContentStore } from "./ContentLoader";
+import { InputManager } from "./InputManager";
+import { Renderer } from "./Renderer";
 
 export class Game {
   private deltaTime: number = 0;
   protected lastTimestamp: number = 0;
   private maxFPS: number = 60;
   private timestep: number = 1000 / 60;
-  public readonly sceneManager: SceneManager;
 
-  constructor(scene: Scene) {
-    this.sceneManager = new SceneManager(scene);
+  public readonly scenes: SceneManager;
+  public readonly content: ContentStore;
+  public readonly input: InputManager;
+  private renderer: Renderer;
+
+  private static _instance: Game;
+
+  private constructor(scene: Scene) {
+    this.scenes = new SceneManager(scene);
+    this.content = new ContentStore();
+    this.input = new InputManager();
+    this.renderer = new Renderer();
+  }
+
+  static get instance(): Game {
+    if (!this._instance) {
+      Game._instance = new Game(new DefaultScene());
+    }
+    return Game._instance;
   }
 
   public start() {
@@ -34,18 +53,17 @@ export class Game {
 
     // Simulate the total elapsed time in fixed-size chunks
     while (this.deltaTime >= this.timestep) {
-      this.sceneManager.update(this.timestep);
+      this.input.update();
+      this.scenes.update(this.timestep);
       this.deltaTime -= this.timestep;
     }
 
     this.clear();
-    this.sceneManager.draw();
+    this.scenes.draw(this.renderer);
     requestAnimationFrame(this.loop.bind(this));
   }
 
   private clear() {
-    // Clear screen
-    gl.clearColor(0, 0, 0.4, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    this.renderer.clear();
   }
 }

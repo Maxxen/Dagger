@@ -1,12 +1,16 @@
-import { ContentLoader, ContentStore } from "./Graphics/ContentLoader";
+import { ContentLoader } from "./ContentLoader";
 import { Camera } from "./Graphics/Camera";
+import { Game } from "./Game";
+import { GameObject } from "./GameObject";
+import { Renderer } from "./Renderer";
+import { isRenderable } from "./Graphics/Renderable";
 
 export abstract class Scene {
-  content: ContentStore = new ContentStore();
-  constructor(public readonly name: string, public readonly camera: Camera) {}
+  constructor(public readonly name: string) {}
 
   // world == layer
   protected world: any = {};
+  public readonly camera: Camera = new Camera();
 
   abstract load(loader: ContentLoader): void;
 
@@ -14,14 +18,21 @@ export abstract class Scene {
 
   abstract update(deltaTime: number): void;
 
-  abstract draw(): void;
+  public draw(renderer: Renderer) {
+    this.gameObjects.forEach(obj => {
+      if (isRenderable(obj)) obj.draw(renderer);
+    });
+    renderer.render(this.camera);
+  }
 
   abstract unload(): void;
+
+  protected gameObjects: GameObject[] = [];
 }
 
 export class DefaultScene extends Scene {
   constructor() {
-    super("default", new Camera());
+    super("default");
   }
   load() {}
   draw() {}
@@ -41,7 +52,7 @@ export class SceneManager {
   public switchScene(name: string) {
     const toLoad = this.scenes[name];
     toLoad.load(
-      toLoad.content.createLoader(() => {
+      Game.instance.content.createLoader(() => {
         this.currentScene.unload();
         this.currentScene = this.scenes[name];
         this.currentScene.init();
@@ -57,7 +68,7 @@ export class SceneManager {
     this.currentScene.update(deltaTime);
   }
 
-  public draw() {
-    this.currentScene.draw();
+  public draw(renderer: Renderer) {
+    this.currentScene.draw(renderer);
   }
 }

@@ -26,4 +26,8 @@ export class Color {
     view[offset + 2] = this.b;
     view[offset + 3] = this.a;
   }
+
+  toArray() {
+    return [this.r, this.g, this.b, this.a];
+  }
 }

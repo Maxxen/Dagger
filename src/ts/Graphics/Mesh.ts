@@ -1,13 +1,8 @@
 import { Geometry } from "./Geometry";
-import { MaterialInstance, MaterialParams } from "./Material/Material";
+import { Material } from "./Material";
+import { Renderable } from "./Renderable";
 
-export class Mesh<T extends MaterialParams = {}> {
-  constructor(
-    public readonly geometry: Geometry,
-    public material: MaterialInstance<T>
-  ) {}
-
-  bind() {
-    this.geometry.bind();
-  }
+export class Mesh implements Renderable {
+  isRenderable = true as const;
+  constructor(public readonly geometry: Geometry, public material: Material) {}
 }

@@ -1,4 +1,4 @@
-import { Texture2D, TextureWrap, TextureFilter } from "./Texture2D";
+import { Texture2D, TextureWrap, TextureFilter } from "./Graphics/Texture2D";
 
 export class ContentStore {
   private cache: ContentCache = {};
