@@ -111,7 +111,7 @@ export class Texture2D {
     gl.bindTexture(gl.TEXTURE_2D, this.textureID);
   }
 
-  static TEXTURE_DEFAULT = new Texture2D(Color.PURPLE);
+  static TEXTURE_DEFAULT = new Texture2D(Color.WHITE);
 
   public equals(other: Texture2D) {
     return this.textureID === other.textureID;

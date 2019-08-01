@@ -2,8 +2,6 @@ import { ContentLoader } from "./ContentLoader";
 import { Camera } from "./Graphics/Camera";
 import { Game } from "./Game";
 import { GameObject } from "./GameObject";
-import { Renderer } from "./Renderer";
-import { isRenderable } from "./Graphics/Renderable";
 
 export abstract class Scene {
   constructor(public readonly name: string) {}
@@ -18,12 +16,7 @@ export abstract class Scene {
 
   abstract update(deltaTime: number): void;
 
-  public draw(renderer: Renderer) {
-    this.gameObjects.forEach(obj => {
-      if (isRenderable(obj)) obj.draw(renderer);
-    });
-    renderer.render(this.camera);
-  }
+  abstract draw(): void;
 
   abstract unload(): void;
 
@@ -68,7 +61,7 @@ export class SceneManager {
     this.currentScene.update(deltaTime);
   }
 
-  public draw(renderer: Renderer) {
-    this.currentScene.draw(renderer);
+  public draw() {
+    this.currentScene.draw();
   }
 }

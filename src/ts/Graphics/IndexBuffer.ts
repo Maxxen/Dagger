@@ -1,7 +1,7 @@
 import { gl } from "./gl";
 
 export class IndexBuffer {
-  private id: WebGLBuffer;
+  public readonly id: WebGLBuffer;
   private _count: number = 0;
 
   constructor(indices?: Uint16Array) {

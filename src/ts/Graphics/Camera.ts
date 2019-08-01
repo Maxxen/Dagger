@@ -5,6 +5,7 @@ export class Camera {
 
   private projectionMatrix: mat4 = mat4.create();
   private viewMatrix: mat4 = mat4.create();
+  private viewProjMatrix: mat4 = mat4.create();
 
   constructor(
     private left: number = -1.0,
@@ -31,6 +32,8 @@ export class Camera {
     mat4.translate(transform, transform, this._position);
     mat4.rotateZ(transform, transform, this._rotation);
     mat4.invert(this.viewMatrix, transform);
+
+    mat4.mul(this.viewProj, this.projectionMatrix, this.viewMatrix);
   }
 
   public get position(): [number, number, number] {
@@ -57,6 +60,10 @@ export class Camera {
   public set rotation(radians: number) {
     this._rotation = radians;
     this.recalculateMatrices();
+  }
+
+  public get viewProj() {
+    return this.viewProjMatrix;
   }
 
   public get projection() {

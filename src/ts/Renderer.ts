@@ -1,57 +1,54 @@
 import { GameObject } from "./GameObject";
 import { gl } from "./Graphics/gl";
 import { Camera } from "./Graphics/Camera";
-import { Shader } from "./Graphics/Shader";
-import { Renderable, isRenderable } from "./Graphics/Renderable";
-import { SHADER_TEXTURE_COLOR } from "./Graphics/Shaders";
+import { isRenderable, RenderComponent } from "./Graphics/Renderable";
 
 export class Renderer {
-  public shaders: Shader[] = [SHADER_TEXTURE_COLOR];
-  renderQueue: { [key: string]: Renderable[] };
+  renderQueue: RenderComponent[] = [];
 
-  public constructor() {
-    this.renderQueue = {};
-    this.shaders.forEach(shader => {
-      this.renderQueue[shader.name] = [];
-    });
-  }
+  public constructor() {}
 
   public register(obj: GameObject) {
     if (isRenderable(obj)) {
-      this.renderQueue[obj.material.shaderName].push(obj);
+      this.renderQueue.push(obj.renderer);
     }
+  }
+
+  private sortRenderables() {
+    this.renderQueue.sort((a, b) => {
+      return a.getRenderKey() - b.getRenderKey();
+    });
   }
 
   public render(camera: Camera) {
-    this.shaders.forEach(shader => {
-      shader.use();
+    this.sortRenderables();
 
-      shader.setMat4("V", camera.view);
-      shader.setMat4("P", camera.projection);
+    let currentShaderID = 0;
+    this.renderQueue.forEach(renderable => {
+      if (renderable.getRenderKey() !== currentShaderID) {
+        const newShader = renderable.material.shader;
+        currentShaderID = newShader.id;
+        newShader.use();
 
-      const meshes = this.renderQueue[shader.name];
+        newShader.setMat4("V", camera.view);
+        newShader.setMat4("P", camera.projection);
+      }
 
-      meshes.forEach(renderable => {
-        renderable.material.use(shader);
-        renderable.geometry.bind();
+      renderable.draw();
 
-        gl.drawElements(
-          gl.TRIANGLES,
-          renderable.geometry.indexCount,
-          gl.UNSIGNED_SHORT,
-          0
-        );
-      });
+      gl.drawElements(
+        gl.TRIANGLES,
+        renderable.geometry.indexCount,
+        gl.UNSIGNED_SHORT,
+        0
+      );
     });
-
-    for (let bucket in this.renderQueue) {
-      this.renderQueue[bucket] = [];
-    }
+    this.renderQueue = [];
   }
 
   public clear() {
-    // Clear screen
-    gl.clearColor(0, 0, 0.4, 1);
+    gl.clearColor(0, 0, 0.5, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // Clear screen
   }
 }

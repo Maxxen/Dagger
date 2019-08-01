@@ -2,7 +2,6 @@ import { gl } from "./Graphics/gl";
 import { Scene, SceneManager, DefaultScene } from "./Scene";
 import { ContentStore } from "./ContentLoader";
 import { InputManager } from "./InputManager";
-import { Renderer } from "./Renderer";
 
 export class Game {
   private deltaTime: number = 0;
@@ -13,7 +12,6 @@ export class Game {
   public readonly scenes: SceneManager;
   public readonly content: ContentStore;
   public readonly input: InputManager;
-  private renderer: Renderer;
 
   private static _instance: Game;
 
@@ -21,7 +19,6 @@ export class Game {
     this.scenes = new SceneManager(scene);
     this.content = new ContentStore();
     this.input = new InputManager();
-    this.renderer = new Renderer();
   }
 
   static get instance(): Game {
@@ -36,9 +33,12 @@ export class Game {
     requestAnimationFrame(this.loop.bind(this));
   }
 
+  once = true;
+
   private setup() {
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
+    //gl.enable(gl.CULL_FACE);
     gl.depthFunc(gl.LESS);
   }
 
@@ -59,11 +59,13 @@ export class Game {
     }
 
     this.clear();
-    this.scenes.draw(this.renderer);
+    this.scenes.draw();
     requestAnimationFrame(this.loop.bind(this));
   }
 
-  private clear() {
-    this.renderer.clear();
+  public clear() {
+    // Clear screen
+    gl.clearColor(0, 0, 0.5, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
 }

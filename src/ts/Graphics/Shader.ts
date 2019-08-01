@@ -2,7 +2,10 @@ import { gl } from "./gl";
 import { mat4 } from "gl-matrix";
 import { Texture2D } from "./Texture2D";
 
+let nextShaderID: number = 1;
+
 export class Shader {
+  public readonly id: number;
   private program: WebGLProgram;
   private uniformLocations: { [key: string]: WebGLUniformLocation };
 
@@ -17,6 +20,9 @@ export class Shader {
     // Cache uniform locations
     this.use();
     this.uniformLocations = this.getUniformLocations();
+
+    // Generate a new id
+    this.id = nextShaderID++;
   }
 
   private compileShader(source: string, type: number): WebGLShader | null {
