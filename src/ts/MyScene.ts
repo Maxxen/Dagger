@@ -3,10 +3,8 @@ import { Scene } from "./Scene";
 import { ContentLoader } from "./ContentLoader";
 import { Game } from "./Game";
 import { Batcher } from "./Graphics/Batcher";
-
-import { Color } from "./Graphics/Color";
-import { Vector2 } from "./Graphics/Vector2";
 import { Texture2D } from "./Graphics/Texture2D";
+import { Rectangle } from "./Graphics/Rectangle";
 
 export class MyScene extends Scene {
   batcher: Batcher;
@@ -56,8 +54,8 @@ export class MyScene extends Scene {
     this.batcher.begin(this.camera.viewProj);
 
     for (let i = 0; i < 100; i++) {
-      this.batcher.draw(this.tex1!, new Vector2(i, 0), Color.WHITE);
-      this.batcher.draw(this.tex2!, new Vector2(i, 1), Color.WHITE);
+      this.batcher.draw(this.tex1!, new Rectangle(i, 0, 1, 1));
+      this.batcher.draw(this.tex2!, new Rectangle(i, 1, 0.5, 0.5));
     }
     for (let i = 0; i < 100; i++) {}
     this.batcher.end();

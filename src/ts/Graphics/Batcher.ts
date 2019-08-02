@@ -7,97 +7,7 @@ import { SpriteMaterial } from "./SpriteComponent";
 import { Vector2 } from "./Vector2";
 import { Color } from "./Color";
 import { gl } from "./gl";
-
-class BatchItem {
-  /* 
-  Optimization ideas
-    1. Store the floats in a float32array, should take up less memory than arrays of numbers
-    2. Move vertex format to PostionUVColor instead of PositionColorUV so we can set the entire
-      all vertex data in one .set operations. (or keep it unrolled, idk) and then add the
-      color bytes afterwards
-  */
-
-  public constructor(
-    public texture: Texture2D,
-    public color: Color,
-    public pos0: [number, number, number],
-    public uv0: [number, number],
-    public pos1: [number, number, number],
-    public uv1: [number, number],
-    public pos2: [number, number, number],
-    public uv2: [number, number],
-    public pos3: [number, number, number],
-    public uv3: [number, number]
-  ) {}
-
-  pack(buffer: ArrayBuffer, offset: number) {
-    const bytes = new Uint8Array(buffer, offset);
-    const floats = new Float32Array(buffer, offset);
-
-    // We unroll the packing to optimize
-    // It is faster than .set() for small data sets
-
-    // Bytes 0 to 12
-    floats[0] = this.pos0[0];
-    floats[1] = this.pos0[1];
-    floats[2] = this.pos0[2];
-
-    // bytes 12 to 16
-    bytes[12] = this.color.r;
-    bytes[13] = this.color.g;
-    bytes[14] = this.color.b;
-    bytes[15] = this.color.a;
-
-    // bytes 16 to 24
-    floats[4] = this.uv0[0];
-    floats[5] = this.uv0[1];
-
-    // bytes 24 to 36
-    floats[6] = this.pos1[0];
-    floats[7] = this.pos1[1];
-    floats[8] = this.pos1[2];
-
-    // bytes 36 to 40
-    bytes[36] = this.color.r;
-    bytes[37] = this.color.g;
-    bytes[38] = this.color.b;
-    bytes[39] = this.color.a;
-
-    // bytes 40 to 48
-    floats[10] = this.uv1[0];
-    floats[11] = this.uv1[1];
-
-    // bytes 48 to 60
-    floats[12] = this.pos2[0];
-    floats[13] = this.pos2[1];
-    floats[14] = this.pos2[2];
-
-    // bytes 60 to 64
-    bytes[60] = this.color.r;
-    bytes[61] = this.color.g;
-    bytes[62] = this.color.b;
-    bytes[63] = this.color.a;
-
-    // bytes 64 to 72
-    floats[16] = this.uv2[0];
-    floats[17] = this.uv2[1];
-
-    // bytes 72 to 84
-    floats[18] = this.pos3[0];
-    floats[19] = this.pos3[1];
-    floats[20] = this.pos3[2];
-
-    //bytes 84 to 88
-    bytes[84] = this.color.r;
-    bytes[85] = this.color.g;
-    bytes[86] = this.color.b;
-    bytes[87] = this.color.a;
-
-    //bytes 88 to 96
-    floats[22] = this.uv3[0];
-    floats[23] = this.uv3[1];
-  }
-}
+import { Rectangle } from "./Rectangle";
 
 export class Batcher {
   public transform: mat4 = mat4.create();
@@ -140,16 +50,14 @@ export class Batcher {
     this.flush();
   }
 
-  public draw(texture: Texture2D, position: Vector2, color: Color): void {
-    this.batchSprite(texture, position, color);
-  }
-
-  private batchSprite(
+  public draw(
     texture: Texture2D,
-    position: Vector2,
-    color: Color,
+    position: Rectangle,
+    color: Color = Color.WHITE,
+    origin: Vector2 = new Vector2(0, 0),
+    crop: Rectangle = new Rectangle(0, 0, 1, 1),
     depth: number = 0
-  ) {
+  ): void {
     if (this.itemCount >= Batcher.MAX_SPRITES) {
       this.flush();
     }
@@ -157,14 +65,15 @@ export class Batcher {
     this.items[this.itemCount] = new BatchItem(
       texture,
       color,
-      [position.x, position.y, depth],
-      [0, 0],
-      [position.x, position.y - 1, depth],
-      [0, 1],
-      [position.x + 1, position.y, depth],
-      [1, 0],
-      [position.x + 1, position.y - 1, depth],
-      [1, 1]
+      depth,
+      position.topLeft.sub(origin),
+      crop.botLeft,
+      position.botLeft.sub(origin),
+      crop.topLeft,
+      position.topRight.sub(origin),
+      crop.botRight,
+      position.botRight.sub(origin),
+      crop.topRight
     );
 
     this.itemCount++;
@@ -234,5 +143,146 @@ export class Batcher {
       indices[i + 5] = j + 3;
     }
     return indices;
+  }
+}
+
+class BatchItem {
+  /* 
+  Optimization ideas
+    1. Store the floats in a float32array, should take up less memory than arrays of numbers
+    2. Move vertex format to PostionUVColor instead of PositionColorUV so we can set the entire
+      all vertex data in one .set operations. (or keep it unrolled, idk) and then add the
+      color bytes afterwards
+  */
+
+  public texture: Texture2D;
+  public color: Color;
+  public pos: [
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number,
+    number
+  ];
+  public constructor(
+    texture: Texture2D,
+    color: Color,
+    depth: number,
+    pos0: Vector2,
+    uv0: Vector2,
+    pos1: Vector2,
+    uv1: Vector2,
+    pos2: Vector2,
+    uv2: Vector2,
+    pos3: Vector2,
+    uv3: Vector2
+  ) {
+    this.color = color;
+    this.texture = texture;
+    this.pos = [
+      pos0.x,
+      pos0.y,
+      depth,
+      uv0.x,
+      uv0.y,
+      pos1.x,
+      pos1.y,
+      depth,
+      uv1.x,
+      uv1.y,
+      pos2.x,
+      pos2.y,
+      depth,
+      uv2.x,
+      uv2.y,
+      pos3.x,
+      pos3.y,
+      depth,
+      uv3.x,
+      uv3.y
+    ];
+  }
+
+  pack(buffer: ArrayBuffer, offset: number) {
+    const bytes = new Uint8Array(buffer, offset);
+    const floats = new Float32Array(buffer, offset);
+
+    // We unroll the packing to optimize
+    // It is faster than .set() for small data sets
+
+    // Bytes 0 to 12
+    floats[0] = this.pos[0];
+    floats[1] = this.pos[1];
+    floats[2] = this.pos[2];
+
+    // bytes 12 to 16
+    bytes[12] = this.color.r;
+    bytes[13] = this.color.g;
+    bytes[14] = this.color.b;
+    bytes[15] = this.color.a;
+
+    // bytes 16 to 24
+    floats[4] = this.pos[3];
+    floats[5] = this.pos[4];
+
+    // bytes 24 to 36
+    floats[6] = this.pos[5];
+    floats[7] = this.pos[6];
+    floats[8] = this.pos[7];
+
+    // bytes 36 to 40
+    bytes[36] = this.color.r;
+    bytes[37] = this.color.g;
+    bytes[38] = this.color.b;
+    bytes[39] = this.color.a;
+
+    // bytes 40 to 48
+    floats[10] = this.pos[8];
+    floats[11] = this.pos[9];
+
+    // bytes 48 to 60
+    floats[12] = this.pos[10];
+    floats[13] = this.pos[11];
+    floats[14] = this.pos[12];
+
+    // bytes 60 to 64
+    bytes[60] = this.color.r;
+    bytes[61] = this.color.g;
+    bytes[62] = this.color.b;
+    bytes[63] = this.color.a;
+
+    // bytes 64 to 72
+    floats[16] = this.pos[13];
+    floats[17] = this.pos[14];
+
+    // bytes 72 to 84
+    floats[18] = this.pos[15];
+    floats[19] = this.pos[16];
+    floats[20] = this.pos[17];
+
+    //bytes 84 to 88
+    bytes[84] = this.color.r;
+    bytes[85] = this.color.g;
+    bytes[86] = this.color.b;
+    bytes[87] = this.color.a;
+
+    //bytes 88 to 96
+    floats[22] = this.pos[18];
+    floats[23] = this.pos[19];
   }
 }
