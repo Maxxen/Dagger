@@ -25,9 +25,12 @@ export enum TexturePixelType {
 }
 
 export class Texture2D {
-  private textureID: WebGLTexture;
+  private static nextID = 0;
+
+  private textureHandle: WebGLTexture;
   public readonly width: number;
   public readonly height: number;
+  public readonly id: number;
 
   constructor(
     source: HTMLImageElement | Color,
@@ -38,9 +41,10 @@ export class Texture2D {
     public readonly srcFormat: TexturePixelFormat = TexturePixelFormat.RGBA,
     public readonly srcType: TexturePixelType = gl.UNSIGNED_BYTE
   ) {
-    this.textureID = gl.createTexture()!;
+    this.textureHandle = gl.createTexture()!;
+    this.id = Texture2D.nextID++;
 
-    gl.bindTexture(gl.TEXTURE_2D, this.textureID);
+    gl.bindTexture(gl.TEXTURE_2D, this.textureHandle);
 
     if (this.sourceIsImage(source)) {
       this.width = source.width;
@@ -108,12 +112,16 @@ export class Texture2D {
   }
 
   public bind() {
-    gl.bindTexture(gl.TEXTURE_2D, this.textureID);
+    gl.bindTexture(gl.TEXTURE_2D, this.textureHandle);
   }
 
   static TEXTURE_DEFAULT = new Texture2D(Color.WHITE);
 
   public equals(other: Texture2D) {
-    return this.textureID === other.textureID;
+    return this.id == other.id;
+  }
+
+  public compareTo(other: Texture2D) {
+    return this.id - other.id;
   }
 }

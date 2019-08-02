@@ -1,9 +1,6 @@
-import { RenderComponent } from "./Renderable";
 import { mat4 } from "gl-matrix";
 import { Texture2D } from "./Texture2D";
 import { gl } from "./gl";
-import { QUAD } from "./Quad";
-import { Geometry } from "./Geometry";
 import { Material } from "./Material";
 import { Shader } from "./Shader";
 
@@ -50,25 +47,5 @@ export class SpriteMaterial extends Material {
   use() {
     this.shader.setMat4("MVP", this.MVP);
     this.shader.setTexture(gl.TEXTURE0, "u_sampler", this.texture, 0);
-  }
-}
-
-export class SpriteComponent implements RenderComponent {
-  material: SpriteMaterial = new SpriteMaterial();
-  geometry: Geometry = QUAD;
-
-  constructor(texture?: Texture2D) {
-    if (texture) {
-      this.material.texture = texture;
-    }
-  }
-
-  draw(): void {
-    this.material.use();
-    this.geometry.bind();
-  }
-
-  getRenderKey(): number {
-    return this.material.shader.id;
   }
 }

@@ -9,8 +9,9 @@ import { Color } from "./Color";
 import { Vector3 } from "./Vector3";
 import { gl } from "./gl";
 
-export class Quad {
+class BatchItem {
   public constructor(
+    public texture: Texture2D,
     public v1: VertexPositionColorUV,
     public v2: VertexPositionColorUV,
     public v3: VertexPositionColorUV,
@@ -27,19 +28,15 @@ export class Quad {
 
 export class Batcher {
   public transform: mat4 = mat4.create();
-  public projection: mat4 = mat4.create();
-  public view: mat4 = mat4.create();
 
   private vertexBuffer: VertexBuffer;
   private indexBuffer: IndexBuffer;
-  private textures: Texture2D[];
-  private quads: Quad[];
+  private items: BatchItem[];
+  private itemCount: number = 0;
 
   private spriteMaterial: SpriteMaterial;
 
   private drawing: boolean = false;
-
-  private spritesCount: number = 0;
 
   static readonly MAX_SPRITES = 2048;
   static readonly MAX_VERTICES = Batcher.MAX_SPRITES * 4;
@@ -50,10 +47,7 @@ export class Batcher {
   public constructor() {
     this.vertexBuffer = new VertexBuffer(VertexPositionColorUV.layout);
     this.indexBuffer = new IndexBuffer(Batcher.indexData);
-
-    this.quads = new Array<Quad>(Batcher.MAX_SPRITES);
-    this.textures = new Array<Texture2D>(Batcher.MAX_SPRITES);
-
+    this.items = new Array<BatchItem>(Batcher.MAX_SPRITES);
     this.spriteMaterial = new SpriteMaterial();
   }
 
@@ -83,80 +77,88 @@ export class Batcher {
     color: Color,
     depth: number = 0
   ) {
-    if (this.spritesCount >= Batcher.MAX_SPRITES) {
+    if (this.itemCount >= Batcher.MAX_SPRITES) {
       this.flush();
     }
-    this.quads[this.spritesCount] = new Quad(
+
+    this.items[this.itemCount] = new BatchItem(
+      texture,
       new VertexPositionColorUV(
         new Vector3(position.x, position.y, depth),
-        Color.PURPLE,
+        color,
+        new Vector2(0, 0)
+      ),
+      new VertexPositionColorUV(
+        new Vector3(position.x, position.y - 1, depth),
+        color,
         new Vector2(0, 1)
       ),
       new VertexPositionColorUV(
         new Vector3(position.x + 1, position.y, depth),
-        Color.RED,
-        new Vector2(1, 1)
-      ),
-      new VertexPositionColorUV(
-        new Vector3(position.x + 1, position.y + 1, depth),
-        Color.GREEN,
+        color,
         new Vector2(1, 0)
       ),
       new VertexPositionColorUV(
-        new Vector3(position.x, position.y + 1, depth),
+        new Vector3(position.x + 1, position.y - 1, depth),
         color,
-        new Vector2(0, 0)
+        new Vector2(1, 1)
       )
     );
 
-    this.textures[this.spritesCount] = texture;
-    this.spritesCount++;
+    this.itemCount++;
   }
 
-  private setupBuffer() {
+  private setupBuffers() {
     const buffer = new ArrayBuffer(
-      this.spritesCount * this.vertexBuffer.layout.stride * 4
+      this.itemCount * this.vertexBuffer.layout.stride * 4
     );
-    for (let i = 0; i < this.spritesCount; i++) {
-      this.quads[i].pack(buffer, i * 96);
+    for (let i = 0; i < this.itemCount; i++) {
+      this.items[i].pack(buffer, i * 96);
     }
     this.vertexBuffer.setData(buffer);
     this.vertexBuffer.bind();
-    let offset = 0;
-    for (var i = 0; i < this.vertexBuffer.layout.elements.length; i++) {
-      const elem = this.vertexBuffer.layout.elements[i];
-
-      gl.enableVertexAttribArray(i);
-      // This is really confusing, gl.vertexAttribPointer takes (index, SIZE, ...)
-      // size in this case is NOT the size of the elements, but instead the number of components
-      gl.vertexAttribPointer(
-        i,
-        elem.count,
-        elem.type,
-        elem.normalized,
-        this.vertexBuffer.layout.stride,
-        offset
-      );
-      offset += elem.count * elem.size;
-    }
+    this.vertexBuffer.applyAttribs();
+    this.indexBuffer.bind();
   }
 
   public flush() {
-    if (this.spritesCount == 0) {
+    if (this.itemCount == 0) {
       return;
     }
 
-    this.setupBuffer();
+    // Before we pack the data into the buffer, sort the sprite by texture id so we
+    // can group them into larger batches
 
+    this.items.sort((a, b) => {
+      return a.texture.compareTo(b.texture);
+    });
+
+    this.setupBuffers();
     this.spriteMaterial.MVP = this.transform;
-    this.spriteMaterial.texture = this.textures[0];
     this.spriteMaterial.shader.use();
+
+    let texture: Texture2D = this.items[0].texture;
+    let offset: number = 0;
+
+    // Group sprites with the same texture and draw them with a single indexed call
+    for (let i = 1; i < this.itemCount; i++) {
+      if (this.items[i].texture != texture) {
+        this.drawSprite(texture, offset, i - offset);
+        texture = this.items[i].texture;
+        offset = i;
+      }
+    }
+
+    this.drawSprite(texture, offset, this.itemCount - offset);
+
+    this.itemCount = 0;
+    this.items = [];
+  }
+
+  drawSprite(texture: Texture2D, first: number, count: number) {
+    this.spriteMaterial.texture = texture;
     this.spriteMaterial.use();
-
-    this.indexBuffer.bind();
-    gl.drawElements(gl.TRIANGLES, this.spritesCount * 6, gl.UNSIGNED_SHORT, 0);
-
-    this.spritesCount = 0;
+    gl.drawElements(gl.TRIANGLES, count * 6, gl.UNSIGNED_SHORT, first * 12);
   }
 
   private static makeIndices(): Uint16Array {
@@ -165,8 +167,8 @@ export class Batcher {
       indices[i + 0] = j + 0;
       indices[i + 1] = j + 1;
       indices[i + 2] = j + 2;
-      indices[i + 3] = j + 0;
-      indices[i + 4] = j + 2;
+      indices[i + 3] = j + 2;
+      indices[i + 4] = j + 1;
       indices[i + 5] = j + 3;
     }
     return indices;
