@@ -6,23 +6,96 @@ import { VertexPositionColorUV } from "./Vertex";
 import { SpriteMaterial } from "./SpriteComponent";
 import { Vector2 } from "./Vector2";
 import { Color } from "./Color";
-import { Vector3 } from "./Vector3";
 import { gl } from "./gl";
 
 class BatchItem {
+  /* 
+  Optimization ideas
+    1. Store the floats in a float32array, should take up less memory than arrays of numbers
+    2. Move vertex format to PostionUVColor instead of PositionColorUV so we can set the entire
+      all vertex data in one .set operations. (or keep it unrolled, idk) and then add the
+      color bytes afterwards
+  */
+
   public constructor(
     public texture: Texture2D,
-    public v1: VertexPositionColorUV,
-    public v2: VertexPositionColorUV,
-    public v3: VertexPositionColorUV,
-    public v4: VertexPositionColorUV
+    public color: Color,
+    public pos0: [number, number, number],
+    public uv0: [number, number],
+    public pos1: [number, number, number],
+    public uv1: [number, number],
+    public pos2: [number, number, number],
+    public uv2: [number, number],
+    public pos3: [number, number, number],
+    public uv3: [number, number]
   ) {}
 
   pack(buffer: ArrayBuffer, offset: number) {
-    this.v1.pack(buffer, offset);
-    this.v2.pack(buffer, offset + 24);
-    this.v3.pack(buffer, offset + 48);
-    this.v4.pack(buffer, offset + 72);
+    const bytes = new Uint8Array(buffer, offset);
+    const floats = new Float32Array(buffer, offset);
+
+    // We unroll the packing to optimize
+    // It is faster than .set() for small data sets
+
+    // Bytes 0 to 12
+    floats[0] = this.pos0[0];
+    floats[1] = this.pos0[1];
+    floats[2] = this.pos0[2];
+
+    // bytes 12 to 16
+    bytes[12] = this.color.r;
+    bytes[13] = this.color.g;
+    bytes[14] = this.color.b;
+    bytes[15] = this.color.a;
+
+    // bytes 16 to 24
+    floats[4] = this.uv0[0];
+    floats[5] = this.uv0[1];
+
+    // bytes 24 to 36
+    floats[6] = this.pos1[0];
+    floats[7] = this.pos1[1];
+    floats[8] = this.pos1[2];
+
+    // bytes 36 to 40
+    bytes[36] = this.color.r;
+    bytes[37] = this.color.g;
+    bytes[38] = this.color.b;
+    bytes[39] = this.color.a;
+
+    // bytes 40 to 48
+    floats[10] = this.uv1[0];
+    floats[11] = this.uv1[1];
+
+    // bytes 48 to 60
+    floats[12] = this.pos2[0];
+    floats[13] = this.pos2[1];
+    floats[14] = this.pos2[2];
+
+    // bytes 60 to 64
+    bytes[60] = this.color.r;
+    bytes[61] = this.color.g;
+    bytes[62] = this.color.b;
+    bytes[63] = this.color.a;
+
+    // bytes 64 to 72
+    floats[16] = this.uv2[0];
+    floats[17] = this.uv2[1];
+
+    // bytes 72 to 84
+    floats[18] = this.pos3[0];
+    floats[19] = this.pos3[1];
+    floats[20] = this.pos3[2];
+
+    //bytes 84 to 88
+    bytes[84] = this.color.r;
+    bytes[85] = this.color.g;
+    bytes[86] = this.color.b;
+    bytes[87] = this.color.a;
+
+    //bytes 88 to 96
+    floats[22] = this.uv3[0];
+    floats[23] = this.uv3[1];
   }
 }
 
@@ -83,26 +156,15 @@ export class Batcher {
 
     this.items[this.itemCount] = new BatchItem(
       texture,
-      new VertexPositionColorUV(
-        new Vector3(position.x, position.y, depth),
-        color,
-        new Vector2(0, 0)
-      ),
-      new VertexPositionColorUV(
-        new Vector3(position.x, position.y - 1, depth),
-        color,
-        new Vector2(0, 1)
-      ),
-      new VertexPositionColorUV(
-        new Vector3(position.x + 1, position.y, depth),
-        color,
-        new Vector2(1, 0)
-      ),
-      new VertexPositionColorUV(
-        new Vector3(position.x + 1, position.y - 1, depth),
-        color,
-        new Vector2(1, 1)
-      )
+      color,
+      [position.x, position.y, depth],
+      [0, 0],
+      [position.x, position.y - 1, depth],
+      [0, 1],
+      [position.x + 1, position.y, depth],
+      [1, 0],
+      [position.x + 1, position.y - 1, depth],
+      [1, 1]
     );
 
     this.itemCount++;
