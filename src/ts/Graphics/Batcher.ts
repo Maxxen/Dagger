@@ -1,9 +1,7 @@
 import { mat4 } from "gl-matrix";
 import { VertexBuffer } from "./VertexBuffer";
 import { IndexBuffer } from "./IndexBuffer";
-import { Texture2D } from "./Texture2D";
 import { VertexPositionColorUV } from "./Vertex";
-import { SpriteMaterial } from "./SpriteComponent";
 import { Vector2 } from "./Vector2";
 import { Color } from "./Color";
 import { gl } from "./gl";
@@ -17,8 +15,6 @@ export class Batcher {
   private items: BatchItem[];
   private itemCount: number = 0;
 
-  private spriteMaterial: SpriteMaterial;
-
   private drawing: boolean = false;
 
   static readonly MAX_SPRITES = 2048;
@@ -31,13 +27,13 @@ export class Batcher {
     this.vertexBuffer = new VertexBuffer(VertexPositionColorUV.layout);
     this.indexBuffer = new IndexBuffer(Batcher.indexData);
     this.items = new Array<BatchItem>(Batcher.MAX_SPRITES);
-    this.spriteMaterial = new SpriteMaterial();
   }
 
   public begin(transform: mat4): void {
     if (this.drawing) {
       throw "Cannot call begin without first calling end!";
     }
+
     this.drawing = true;
     this.transform = transform;
   }
@@ -51,19 +47,17 @@ export class Batcher {
   }
 
   public draw(
-    texture: Texture2D,
     position: Rectangle,
-    color: Color = Color.WHITE,
-    origin: Vector2 = new Vector2(0, 0),
-    crop: Rectangle = new Rectangle(0, 0, 1, 1),
-    depth: number = 0
+    color: Color,
+    origin: Vector2,
+    crop: Rectangle,
+    depth: number
   ): void {
     if (this.itemCount >= Batcher.MAX_SPRITES) {
       this.flush();
     }
 
     this.items[this.itemCount] = new BatchItem(
-      texture,
       color,
       depth,
       position.topLeft.sub(origin),
@@ -97,39 +91,12 @@ export class Batcher {
       return;
     }
 
-    // Before we pack the data into the buffer, sort the sprite by texture id so we
-    // can group them into larger batches
-
-    this.items.sort((a, b) => {
-      return a.texture.compareTo(b.texture);
-    });
-
     this.setupBuffers();
-    this.spriteMaterial.MVP = this.transform;
-    this.spriteMaterial.shader.use();
 
-    let texture: Texture2D = this.items[0].texture;
-    let offset: number = 0;
-
-    // Group sprites with the same texture and draw them with a single indexed call
-    for (let i = 1; i < this.itemCount; i++) {
-      if (this.items[i].texture != texture) {
-        this.drawSprite(texture, offset, i - offset);
-        texture = this.items[i].texture;
-        offset = i;
-      }
-    }
-
-    this.drawSprite(texture, offset, this.itemCount - offset);
+    gl.drawElements(gl.TRIANGLES, this.itemCount * 6, gl.UNSIGNED_SHORT, 0);
 
     this.itemCount = 0;
     this.items = [];
-  }
-
-  drawSprite(texture: Texture2D, first: number, count: number) {
-    this.spriteMaterial.texture = texture;
-    this.spriteMaterial.use();
-    gl.drawElements(gl.TRIANGLES, count * 6, gl.UNSIGNED_SHORT, first * 12);
   }
 
   private static makeIndices(): Uint16Array {
@@ -155,7 +122,6 @@ class BatchItem {
       color bytes afterwards
   */
 
-  public texture: Texture2D;
   public color: Color;
   public pos: [
     number,
@@ -180,7 +146,6 @@ class BatchItem {
     number
   ];
   public constructor(
-    texture: Texture2D,
     color: Color,
     depth: number,
     pos0: Vector2,
@@ -193,7 +158,6 @@ class BatchItem {
     uv3: Vector2
   ) {
     this.color = color;
-    this.texture = texture;
     this.pos = [
       pos0.x,
       pos0.y,

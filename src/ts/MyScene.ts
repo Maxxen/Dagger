@@ -5,6 +5,9 @@ import { Game } from "./Game";
 import { Batcher } from "./Graphics/Batcher";
 import { Texture2D } from "./Graphics/Texture2D";
 import { Rectangle } from "./Graphics/Rectangle";
+import { SpriteComponent } from "./Graphics/SpriteComponent";
+import { Renderable } from "./Rendering/Renderable";
+import { SpriteMaterial } from "./Graphics/SpriteMaterial";
 
 export class MyScene extends Scene {
   batcher: Batcher;
@@ -46,20 +49,25 @@ export class MyScene extends Scene {
   init() {
     this.tex1 = Game.instance.content.get("tex1")!;
     this.tex2 = Game.instance.content.get("tex2")!;
-  }
-  update() {}
 
-  draw() {
-    Game.instance.once = false;
-    this.batcher.begin(this.camera.viewProj);
+    let mat1 = new SpriteMaterial();
+    mat1.texture = this.tex1;
+
+    let mat2 = new SpriteMaterial();
+    mat2.texture = this.tex2;
+
+    let renderables: Renderable[] = [];
 
     for (let i = 0; i < 100; i++) {
-      this.batcher.draw(this.tex1!, new Rectangle(i, 0, 1, 1));
-      this.batcher.draw(this.tex2!, new Rectangle(i, 1, 0.5, 0.5));
+      renderables.push(new SpriteComponent(mat1, new Rectangle(i, 0, 1, 1)));
+      renderables.push(
+        new SpriteComponent(mat2, new Rectangle(i, 1, 0.5, 0.5))
+      );
     }
-    for (let i = 0; i < 100; i++) {}
-    this.batcher.end();
+
+    this.renderList.push(...renderables);
   }
+  update() {}
 
   unload() {}
 }

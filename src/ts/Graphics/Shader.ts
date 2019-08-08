@@ -1,10 +1,11 @@
 import { gl } from "./gl";
 import { mat4 } from "gl-matrix";
 import { Texture2D } from "./Texture2D";
+import { Comparable } from "../Comparable";
 
 let nextShaderID: number = 1;
 
-export class Shader {
+export class Shader implements Comparable<Shader> {
   public readonly id: number;
   private program: WebGLProgram;
   private uniformLocations: { [key: string]: WebGLUniformLocation };
@@ -112,5 +113,9 @@ export class Shader {
     texture.bind();
 
     gl.uniform1i(this.uniformLocations[sampleName], slot);
+  }
+
+  public compareTo(other: Shader) {
+    return this.id - other.id;
   }
 }

@@ -2,10 +2,10 @@ import { gl } from "./Graphics/gl";
 import { Scene, SceneManager, DefaultScene } from "./Scene";
 import { ContentStore } from "./ContentLoader";
 import { InputManager } from "./InputManager";
-
+const fps = document.getElementById("FPS")!;
 export class Game {
-  private deltaTime: number = 0;
-  protected lastTimestamp: number = 0;
+  private elapsedTime: number = 0;
+  protected then: number = 0;
   private maxFPS: number = 60;
   private timestep: number = 1000 / 60;
 
@@ -33,8 +33,6 @@ export class Game {
     requestAnimationFrame(this.loop.bind(this));
   }
 
-  once = true;
-
   private setup() {
     // Enable depth testing
     gl.enable(gl.DEPTH_TEST);
@@ -43,23 +41,25 @@ export class Game {
   }
 
   // TODO: Proper time class and constructs.
-  private loop(timestamp: number) {
-    if (timestamp < this.lastTimestamp + 1000 / this.maxFPS) {
+  private loop(now: number) {
+    if (now < this.then + 1000 / this.maxFPS) {
       requestAnimationFrame(this.loop.bind(this));
       return;
     }
-    this.deltaTime += timestamp - this.lastTimestamp;
-    this.lastTimestamp = timestamp;
+    const deltaTime = now - this.then;
+    this.elapsedTime += deltaTime;
+    this.then = now;
 
     // Simulate the total elapsed time in fixed-size chunks
-    while (this.deltaTime >= this.timestep) {
+    while (this.elapsedTime >= this.timestep) {
       this.input.update();
       this.scenes.update(this.timestep);
-      this.deltaTime -= this.timestep;
+      this.elapsedTime -= this.timestep;
     }
 
     this.clear();
     this.scenes.draw();
+    fps.textContent = deltaTime.toFixed(1);
     requestAnimationFrame(this.loop.bind(this));
   }
 

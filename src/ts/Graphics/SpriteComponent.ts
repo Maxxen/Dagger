@@ -1,51 +1,56 @@
-import { mat4 } from "gl-matrix";
-import { Texture2D } from "./Texture2D";
-import { gl } from "./gl";
-import { Material } from "./Material";
-import { Shader } from "./Shader";
+import { Renderable } from "../Rendering/Renderable";
+import { SpriteMaterial } from "./SpriteMaterial";
+import { Camera } from "./Camera";
+import { Rectangle } from "./Rectangle";
+import { Color } from "./Color";
+import { Vector2 } from "./Vector2";
+import { RenderQueue, Transparency } from "../Rendering/Renderer";
 
-const vsSource = `
-        attribute vec4 a_position;
-        attribute vec4 a_color;
-        attribute vec2 a_textureCoord;
+export class SpriteComponent implements Renderable {
+  material: SpriteMaterial;
+  isHidden: boolean;
 
-        uniform mat4 MVP;
-        
-        varying vec4 v_color;
-        varying mediump vec2 v_textureCoord;
+  dimensions: Rectangle;
+  color: Color;
+  crop: Rectangle;
+  origin: Vector2;
+  depth: number;
 
-        void main() {
-          gl_Position = MVP * a_position;
-          v_textureCoord = a_textureCoord;
-          v_color = a_color;
-        }
-      `;
-
-const fsSource = `
-        precision mediump float;
-        
-        varying vec4 v_color;
-        varying mediump vec2 v_textureCoord;
-
-        uniform sampler2D u_sampler;
-
-        void main() {
-          gl_FragColor = texture2D(u_sampler, v_textureCoord) * v_color;
-        }
-      `;
-
-const SHADER_SPRITE = new Shader("Sprite Shader", vsSource, fsSource);
-
-export class SpriteMaterial extends Material {
-  constructor() {
-    super(SHADER_SPRITE);
+  constructor(
+    material: SpriteMaterial,
+    dimension: Rectangle,
+    color: Color = Color.WHITE,
+    origin: Vector2 = new Vector2(0, 0),
+    crop: Rectangle = new Rectangle(0, 0, 1, 1),
+    depth: number = 0
+  ) {
+    this.material = material;
+    this.isHidden = false;
+    this.depth = depth;
+    this.dimensions = dimension;
+    this.color = color;
+    this.origin = origin;
+    this.crop = crop;
   }
 
-  MVP: mat4 = mat4.create();
-  texture: Texture2D = Texture2D.TEXTURE_DEFAULT;
+  isVisible(camera: Camera): boolean {
+    //TODO: proper camera bounds checking
+    if (camera) {
+      return true;
+    } else return true;
+  }
 
-  use() {
-    this.shader.setMat4("MVP", this.MVP);
-    this.shader.setTexture(gl.TEXTURE0, "u_sampler", this.texture, 0);
+  render(queue: RenderQueue, camera: Camera): void {
+    this.material.MVP = camera.viewProj;
+
+    queue.submit(Transparency.OPAQUE, {
+      type: "Sprite",
+      material: this.material,
+      dimensions: this.dimensions,
+      color: this.color,
+      origin: this.origin,
+      crop: this.crop,
+      depth: this.depth
+    });
   }
 }

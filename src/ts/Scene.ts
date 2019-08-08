@@ -2,13 +2,19 @@ import { ContentLoader } from "./ContentLoader";
 import { Camera } from "./Graphics/Camera";
 import { Game } from "./Game";
 import { GameObject } from "./GameObject";
+import { Renderer } from "./Rendering/Renderer";
+import { Renderable } from "./Rendering/Renderable";
 
 export abstract class Scene {
   constructor(public readonly name: string) {}
 
   // world == layer
   protected world: any = {};
+
+  public renderList: Renderable[] = [];
   public readonly camera: Camera = new Camera();
+
+  public renderer: Renderer = new Renderer(0);
 
   abstract load(loader: ContentLoader): void;
 
@@ -16,7 +22,9 @@ export abstract class Scene {
 
   abstract update(deltaTime: number): void;
 
-  abstract draw(): void;
+  public draw(): void {
+    this.renderer.render(this.camera, this);
+  }
 
   abstract unload(): void;
 
