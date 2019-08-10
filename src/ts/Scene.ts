@@ -2,8 +2,9 @@ import { ContentLoader } from "./ContentLoader";
 import { Camera } from "./Graphics/Camera";
 import { Game } from "./Game";
 import { GameObject } from "./GameObject";
-import { Renderer } from "./Rendering/Renderer";
+import { Renderer, BasicRenderer } from "./Rendering/Renderer";
 import { Renderable } from "./Rendering/Renderable";
+import { Graphics } from "./Rendering/Graphics";
 
 export abstract class Scene {
   constructor(public readonly name: string) {}
@@ -14,7 +15,7 @@ export abstract class Scene {
   public renderList: Renderable[] = [];
   public readonly camera: Camera = new Camera();
 
-  public renderer: Renderer = new Renderer(0);
+  public renderer: Renderer = new BasicRenderer(0, new Graphics());
 
   abstract load(loader: ContentLoader): void;
 

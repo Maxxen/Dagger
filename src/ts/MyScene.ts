@@ -50,10 +50,10 @@ export class MyScene extends Scene {
     this.tex1 = Game.instance.content.get("tex1")!;
     this.tex2 = Game.instance.content.get("tex2")!;
 
-    let mat1 = new SpriteMaterial();
+    const mat1 = new SpriteMaterial();
     mat1.texture = this.tex1;
 
-    let mat2 = new SpriteMaterial();
+    const mat2 = new SpriteMaterial();
     mat2.texture = this.tex2;
 
     let renderables: Renderable[] = [];

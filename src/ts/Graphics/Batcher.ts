@@ -2,17 +2,17 @@ import { mat4 } from "gl-matrix";
 import { VertexBuffer } from "./VertexBuffer";
 import { IndexBuffer } from "./IndexBuffer";
 import { VertexPositionColorUV } from "./Vertex";
-import { Vector2 } from "./Vector2";
-import { Color } from "./Color";
 import { gl } from "./gl";
-import { Rectangle } from "./Rectangle";
+import { Sprite } from "./Sprite";
+import { Material } from "./Material";
 
 export class Batcher {
   public transform: mat4 = mat4.create();
 
+  private dataBuffer: ArrayBuffer;
   private vertexBuffer: VertexBuffer;
   private indexBuffer: IndexBuffer;
-  private items: BatchItem[];
+  private items: Sprite[];
   private itemCount: number = 0;
 
   private drawing: boolean = false;
@@ -26,7 +26,10 @@ export class Batcher {
   public constructor() {
     this.vertexBuffer = new VertexBuffer(VertexPositionColorUV.layout);
     this.indexBuffer = new IndexBuffer(Batcher.indexData);
-    this.items = new Array<BatchItem>(Batcher.MAX_SPRITES);
+    this.items = new Array<Sprite>(Batcher.MAX_SPRITES);
+    this.dataBuffer = new ArrayBuffer(
+      Batcher.MAX_SPRITES * 4 * this.vertexBuffer.layout.stride
+    );
   }
 
   public begin(transform: mat4): void {
@@ -46,45 +49,25 @@ export class Batcher {
     this.flush();
   }
 
-  public draw(
-    position: Rectangle,
-    color: Color,
-    origin: Vector2,
-    crop: Rectangle,
-    depth: number
-  ): void {
+  public batch(sprite: Sprite): void {
     if (this.itemCount >= Batcher.MAX_SPRITES) {
       this.flush();
     }
-
-    this.items[this.itemCount] = new BatchItem(
-      color,
-      depth,
-      position.topLeft.sub(origin),
-      crop.botLeft,
-      position.botLeft.sub(origin),
-      crop.topLeft,
-      position.topRight.sub(origin),
-      crop.botRight,
-      position.botRight.sub(origin),
-      crop.topRight
-    );
-
+    this.items[this.itemCount] = sprite;
     this.itemCount++;
   }
 
   private setupBuffers() {
-    const buffer = new ArrayBuffer(
-      this.itemCount * this.vertexBuffer.layout.stride * 4
-    );
     for (let i = 0; i < this.itemCount; i++) {
-      this.items[i].pack(buffer, i * 96);
+      this.pack(i * 96, this.items[i]);
     }
-    this.vertexBuffer.setData(buffer);
+    this.vertexBuffer.setData(this.dataBuffer);
     this.vertexBuffer.bind();
     this.vertexBuffer.applyAttribs();
     this.indexBuffer.bind();
   }
+
+  /// OLD
 
   public flush() {
     if (this.itemCount == 0) {
@@ -93,10 +76,96 @@ export class Batcher {
 
     this.setupBuffers();
 
-    gl.drawElements(gl.TRIANGLES, this.itemCount * 6, gl.UNSIGNED_SHORT, 0);
+    let material: Material = this.items[0].material;
+    let offset: number = 0;
 
+    // Group sprites with the same texture and draw them with a single indexed call
+    for (let i = 1; i < this.itemCount; i++) {
+      if (this.items[i].material != material) {
+        this.drawSprites(material, offset, i - offset);
+        material = this.items[i].material;
+        offset = i;
+      }
+    }
+
+    this.drawSprites(material, offset, this.itemCount - offset);
+
+    console.log(this.drawCalls);
+    this.drawCalls = 0;
     this.itemCount = 0;
-    this.items = [];
+
+    //this.items = [];
+  }
+
+  private drawCalls = 0;
+
+  private drawSprites(material: Material, first: number, count: number) {
+    // Ugly ugly ugly
+    material.shader.use();
+    material.bind();
+    this.drawCalls++;
+    gl.drawElements(gl.TRIANGLES, count * 6, gl.UNSIGNED_SHORT, first * 12);
+  }
+
+  private pack(offset: number, sprite: Sprite) {
+    const bytes = new Uint8Array(this.dataBuffer, offset);
+    const floats = new Float32Array(this.dataBuffer, offset);
+
+    const { dimensions, crop, color, origin, depth } = sprite;
+
+    // We unroll the packing to optimize
+    // It is faster than .set() for small data sets
+
+    // Bytes 0 to 12
+    floats[0] = dimensions.x - origin.x;
+    floats[1] = dimensions.y - origin.y;
+    floats[2] = depth;
+
+    // bytes 12 to 16
+    bytes[12] = color.r;
+    bytes[13] = color.g;
+    bytes[14] = color.b;
+    bytes[15] = color.a;
+
+    // bytes 16 to 24
+    floats[4] = crop.x;
+    floats[5] = crop.y - crop.height;
+
+    // bytes 24 to 36
+    floats[6] = dimensions.x - origin.x;
+    floats[7] = dimensions.y - dimensions.height - origin.y;
+    floats[8] = depth;
+
+    // bytes 36 to 40
+    floats.copyWithin(9, 3, 4);
+
+    // bytes 40 to 48
+    floats[10] = crop.x;
+    floats[11] = crop.y;
+
+    // bytes 48 to 60
+    floats[12] = dimensions.x + dimensions.width - origin.x;
+    floats[13] = dimensions.y - origin.y;
+    floats[14] = depth;
+
+    // bytes 60 to 64
+    floats.copyWithin(15, 3, 4);
+
+    // bytes 64 to 72
+    floats[16] = crop.x + crop.width;
+    floats[17] = crop.y - crop.height;
+
+    // bytes 72 to 84
+    floats[18] = dimensions.x + dimensions.width - origin.x;
+    floats[19] = dimensions.y - dimensions.height - origin.y;
+    floats[20] = depth;
+
+    //bytes 84 to 88
+    floats.copyWithin(21, 3, 4);
+
+    //bytes 88 to 96
+    floats[22] = crop.x + crop.width;
+    floats[23] = crop.y;
   }
 
   private static makeIndices(): Uint16Array {
@@ -110,143 +179,5 @@ export class Batcher {
       indices[i + 5] = j + 3;
     }
     return indices;
-  }
-}
-
-class BatchItem {
-  /* 
-  Optimization ideas
-    1. Store the floats in a float32array, should take up less memory than arrays of numbers
-    2. Move vertex format to PostionUVColor instead of PositionColorUV so we can set the entire
-      all vertex data in one .set operations. (or keep it unrolled, idk) and then add the
-      color bytes afterwards
-  */
-
-  public color: Color;
-  public pos: [
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number
-  ];
-  public constructor(
-    color: Color,
-    depth: number,
-    pos0: Vector2,
-    uv0: Vector2,
-    pos1: Vector2,
-    uv1: Vector2,
-    pos2: Vector2,
-    uv2: Vector2,
-    pos3: Vector2,
-    uv3: Vector2
-  ) {
-    this.color = color;
-    this.pos = [
-      pos0.x,
-      pos0.y,
-      depth,
-      uv0.x,
-      uv0.y,
-      pos1.x,
-      pos1.y,
-      depth,
-      uv1.x,
-      uv1.y,
-      pos2.x,
-      pos2.y,
-      depth,
-      uv2.x,
-      uv2.y,
-      pos3.x,
-      pos3.y,
-      depth,
-      uv3.x,
-      uv3.y
-    ];
-  }
-
-  pack(buffer: ArrayBuffer, offset: number) {
-    const bytes = new Uint8Array(buffer, offset);
-    const floats = new Float32Array(buffer, offset);
-
-    // We unroll the packing to optimize
-    // It is faster than .set() for small data sets
-
-    // Bytes 0 to 12
-    floats[0] = this.pos[0];
-    floats[1] = this.pos[1];
-    floats[2] = this.pos[2];
-
-    // bytes 12 to 16
-    bytes[12] = this.color.r;
-    bytes[13] = this.color.g;
-    bytes[14] = this.color.b;
-    bytes[15] = this.color.a;
-
-    // bytes 16 to 24
-    floats[4] = this.pos[3];
-    floats[5] = this.pos[4];
-
-    // bytes 24 to 36
-    floats[6] = this.pos[5];
-    floats[7] = this.pos[6];
-    floats[8] = this.pos[7];
-
-    // bytes 36 to 40
-    bytes[36] = this.color.r;
-    bytes[37] = this.color.g;
-    bytes[38] = this.color.b;
-    bytes[39] = this.color.a;
-
-    // bytes 40 to 48
-    floats[10] = this.pos[8];
-    floats[11] = this.pos[9];
-
-    // bytes 48 to 60
-    floats[12] = this.pos[10];
-    floats[13] = this.pos[11];
-    floats[14] = this.pos[12];
-
-    // bytes 60 to 64
-    bytes[60] = this.color.r;
-    bytes[61] = this.color.g;
-    bytes[62] = this.color.b;
-    bytes[63] = this.color.a;
-
-    // bytes 64 to 72
-    floats[16] = this.pos[13];
-    floats[17] = this.pos[14];
-
-    // bytes 72 to 84
-    floats[18] = this.pos[15];
-    floats[19] = this.pos[16];
-    floats[20] = this.pos[17];
-
-    //bytes 84 to 88
-    bytes[84] = this.color.r;
-    bytes[85] = this.color.g;
-    bytes[86] = this.color.b;
-    bytes[87] = this.color.a;
-
-    //bytes 88 to 96
-    floats[22] = this.pos[18];
-    floats[23] = this.pos[19];
   }
 }

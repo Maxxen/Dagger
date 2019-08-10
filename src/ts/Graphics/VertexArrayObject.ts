@@ -2,7 +2,7 @@ import { VertexBuffer } from "./VertexBuffer";
 import { glext, gl } from "./gl";
 import { IndexBuffer } from "./IndexBuffer";
 
-export class Geometry {
+export class VertexArrayObject {
   private id: WebGLVertexArrayObjectOES;
   public vertexBuffer: VertexBuffer | null = null;
   public indexBuffer: IndexBuffer | null = null;

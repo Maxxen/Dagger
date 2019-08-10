@@ -1,4 +1,4 @@
-import { Geometry } from "./Geometry";
+import { VertexArrayObject } from "./VertexArrayObject";
 import { VertexBuffer } from "./VertexBuffer";
 import { IndexBuffer } from "./IndexBuffer";
 import { Vertex } from "./Vertex";
@@ -36,7 +36,7 @@ export class GeometryBuilder<V extends Vertex> {
     return this;
   }
 
-  finalize(): Geometry {
+  finalize(): VertexArrayObject {
     const layout = this.vertices[0].getLayout();
     const buffer = new ArrayBuffer(this.vertices.length * layout.stride);
 
@@ -44,7 +44,7 @@ export class GeometryBuilder<V extends Vertex> {
       this.vertices[i].pack(buffer, i * layout.stride);
     }
 
-    return new Geometry(
+    return new VertexArrayObject(
       new VertexBuffer(layout, buffer),
       new IndexBuffer(new Uint16Array(this.indices))
     );

@@ -16,11 +16,11 @@ export class Rectangle {
   }
 
   get botLeft(): Vector2 {
-    return new Vector2(this.x, this.y + this.height);
+    return new Vector2(this.x, this.y - this.height);
   }
 
   get botRight(): Vector2 {
-    return new Vector2(this.x + this.width, this.y + this.width);
+    return new Vector2(this.x + this.width, this.y - this.height);
   }
 
   constructor(x: number, y: number, width: number, height: number) {

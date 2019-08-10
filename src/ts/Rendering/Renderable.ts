@@ -1,11 +1,6 @@
 import { Material } from "../Graphics/Material";
 import { Camera } from "../Graphics/Camera";
-import { RenderQueue } from "./Renderer";
-
-export enum Translucency {
-  OPAQUE,
-  TRANSPARENT
-}
+import { Graphics } from "./Graphics";
 
 export interface Renderable {
   material: Material;
@@ -13,5 +8,5 @@ export interface Renderable {
   depth: number;
 
   isVisible(camera: Camera): boolean;
-  render(queue: RenderQueue, camera: Camera): void;
+  render(graphics: Graphics, camera: Camera): void;
 }
