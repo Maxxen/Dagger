@@ -2,7 +2,6 @@ import { Camera } from "../Graphics/Camera";
 import { Scene } from "../Scene";
 import { Renderable } from "./Renderable";
 import { Graphics } from "./Graphics";
-import { mat4 } from "gl-matrix";
 
 export enum Transparency {
   OPAQUE,
@@ -32,7 +31,7 @@ export class BasicRenderer extends Renderer {
       return a.material.compareTo(b.material);
     });
 
-    this.graphics.spriteBatch.begin(mat4.create());
+    this.graphics.spriteBatch.begin();
     for (const renderable of this.renderQueue) {
       if (!renderable.isHidden && renderable.isVisible(camera)) {
         renderable.render(this.graphics, camera);

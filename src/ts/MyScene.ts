@@ -2,7 +2,6 @@ import { InputEventType } from "./InputManager";
 import { Scene } from "./Scene";
 import { ContentLoader } from "./ContentLoader";
 import { Game } from "./Game";
-import { Batcher } from "./Graphics/Batcher";
 import { Texture2D } from "./Graphics/Texture2D";
 import { Rectangle } from "./Graphics/Rectangle";
 import { SpriteComponent } from "./Graphics/SpriteComponent";
@@ -10,13 +9,10 @@ import { Renderable } from "./Rendering/Renderable";
 import { SpriteMaterial } from "./Graphics/SpriteMaterial";
 
 export class MyScene extends Scene {
-  batcher: Batcher;
-
   constructor() {
     super("MyScene");
 
     this.camera.position = [0, 0, 0];
-    this.batcher = new Batcher();
 
     Game.instance.input.subscribe(ev => {
       if (ev.type == InputEventType.KEY_DOWN) {

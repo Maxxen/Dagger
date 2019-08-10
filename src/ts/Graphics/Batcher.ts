@@ -1,4 +1,3 @@
-import { mat4 } from "gl-matrix";
 import { VertexBuffer } from "./VertexBuffer";
 import { IndexBuffer } from "./IndexBuffer";
 import { VertexPositionColorUV } from "./Vertex";
@@ -7,8 +6,6 @@ import { Sprite } from "./Sprite";
 import { Material } from "./Material";
 
 export class Batcher {
-  public transform: mat4 = mat4.create();
-
   private dataBuffer: ArrayBuffer;
   private vertexBuffer: VertexBuffer;
   private indexBuffer: IndexBuffer;
@@ -32,13 +29,12 @@ export class Batcher {
     );
   }
 
-  public begin(transform: mat4): void {
+  public begin(): void {
     if (this.drawing) {
       throw "Cannot call begin without first calling end!";
     }
 
     this.drawing = true;
-    this.transform = transform;
   }
 
   public end() {
@@ -90,20 +86,15 @@ export class Batcher {
 
     this.drawSprites(material, offset, this.itemCount - offset);
 
-    console.log(this.drawCalls);
-    this.drawCalls = 0;
     this.itemCount = 0;
 
     //this.items = [];
   }
 
-  private drawCalls = 0;
-
   private drawSprites(material: Material, first: number, count: number) {
     // Ugly ugly ugly
     material.shader.use();
     material.bind();
-    this.drawCalls++;
     gl.drawElements(gl.TRIANGLES, count * 6, gl.UNSIGNED_SHORT, first * 12);
   }
 

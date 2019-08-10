@@ -2,7 +2,6 @@ import { gl } from "./Graphics/gl";
 import { Scene, SceneManager, DefaultScene } from "./Scene";
 import { ContentStore } from "./ContentLoader";
 import { InputManager } from "./InputManager";
-const fps = document.getElementById("FPS")!;
 export class Game {
   private elapsedTime: number = 0;
   protected then: number = 0;
@@ -59,7 +58,6 @@ export class Game {
 
     this.clear();
     this.scenes.draw();
-    fps.textContent = deltaTime.toFixed(1);
     requestAnimationFrame(this.loop.bind(this));
   }
 
