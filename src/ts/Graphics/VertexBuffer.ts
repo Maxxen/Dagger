@@ -2,7 +2,7 @@ import { gl } from "./gl";
 import { VertexLayout } from "./VertexLayout";
 
 export class VertexBuffer {
-  private id: WebGLBuffer;
+  public readonly id: WebGLBuffer;
   private _count: number = 0;
 
   public readonly layout: VertexLayout;
@@ -23,10 +23,6 @@ export class VertexBuffer {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
-  public bind() {
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.id);
-  }
-
   public applyAttribs() {
     let offset = 0;
     for (var i = 0; i < this.layout.elements.length; i++) {
@@ -45,10 +41,6 @@ export class VertexBuffer {
       );
       offset += elem.count * elem.size;
     }
-  }
-
-  public unbind() {
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
   public dispose() {

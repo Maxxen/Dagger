@@ -1,11 +1,12 @@
-import { BlendState } from "./State/BlendState";
-import { DepthStencilState } from "./State/DepthStencilState";
+import { BlendStateCache } from "./State/BlendState";
 import { SamplerState } from "./State/SamplerState";
 import { VertexBuffer } from "../Graphics/VertexBuffer";
 import { gl } from "../Graphics/gl";
 import { IndexBuffer } from "../Graphics/IndexBuffer";
 import { Batcher } from "../Graphics/Batcher";
-import { VertexArrayObject } from "../Graphics/VertexArrayObject";
+import { VertexLayout } from "../Graphics/VertexLayout";
+import { Texture2D } from "../Graphics/Texture2D";
+import { DepthStencilStateCache } from "./State/DepthStencilState";
 
 enum PrimitiveMode {
   TRIANGLES = gl.TRIANGLES,
@@ -18,23 +19,65 @@ enum PrimitiveMode {
 }
 
 export class Graphics {
-  blendState: BlendState = BlendState.Opaque;
-  depthStencilState: DepthStencilState = new DepthStencilState();
-  sampleState: SamplerState = new SamplerState();
+  /**
+   * BlendState
+   */
+  blendState: BlendStateCache = new BlendStateCache();
 
+  /**
+   * Depth stencil state
+   */
+  depthStencilState: DepthStencilStateCache = new DepthStencilStateCache();
+
+  /**
+   * SamplerState
+   */
+  _sampleState: SamplerState = new SamplerState();
+
+  /**
+   * Sprite batcher
+   */
   spriteBatch: Batcher = new Batcher();
 
   // Todo, bind buffers with gl instead
-  public setVBO(vertexBuffer: VertexBuffer) {
-    vertexBuffer.bind();
+  public bindVertexBuffer(vertexBuffer: VertexBuffer) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer.id);
   }
 
-  public setIBO(indexBuffer: IndexBuffer) {
-    indexBuffer.bind();
+  public unbindVertexBuffer() {
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
   }
 
-  public setVAO(vertexArrayObject: VertexArrayObject) {
-    vertexArrayObject.bind();
+  public bindIndexBuffer(indexBuffer: IndexBuffer) {
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer.id);
+  }
+
+  public unbindIndexBuffer() {
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+  }
+
+  public enableVertexAttribArray(layout: VertexLayout) {
+    let offset = 0;
+    for (let i = 0; i < layout.elements.length; i++) {
+      const elem = layout.elements[i];
+      gl.enableVertexAttribArray(i);
+      // This is really confusing, gl.vertexAttribPointer takes (index, SIZE, ...)
+      // size in this case is NOT the size of the elements, but instead the number of components
+      gl.vertexAttribPointer(
+        i,
+        elem.count,
+        elem.type,
+        elem.normalized,
+        layout.stride,
+        offset
+      );
+      offset += elem.count * elem.size;
+    }
+  }
+
+  public bindTexture2D(texture: Texture2D, unit: number) {
+    gl.activeTexture(unit);
+    gl.bindTexture(gl.TEXTURE_2D, texture.id);
   }
 
   // Draw primitives indexed with ushorts

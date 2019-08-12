@@ -1,5 +1,6 @@
 import { gl } from "../../Graphics/gl";
 import { Color } from "../../Graphics/Color";
+import { StateCache } from "./StateCache";
 
 export enum BlendFunc {
   ADD = gl.FUNC_ADD,
@@ -46,4 +47,61 @@ export class BlendState {
     undefined,
     Blend.ONE_MINUS_SOURCE_ALPHA
   );
+}
+
+export class BlendStateCache extends StateCache<BlendState> {
+  private blendEnabled: boolean = false;
+
+  protected updateState(oldState: BlendState, newState: BlendState) {
+    // Is Blending even enabled in the new state?
+    const newBlendEnabled: boolean = !(
+      newState.colorSourceBlend == Blend.ONE &&
+      newState.colorDestinationBlend == Blend.ZERO &&
+      newState.alphaSourceBlend == Blend.ONE &&
+      newState.alphaDestinationBlend == Blend.ZERO
+    );
+
+    if (this.blendEnabled != newBlendEnabled) {
+      newBlendEnabled ? gl.enable(gl.BLEND) : gl.disable(gl.BLEND);
+      this.blendEnabled = newBlendEnabled;
+    }
+
+    // Blend color
+    if (!oldState.blendFactor.equals(newState.blendFactor)) {
+      gl.blendColor(...newState.blendFactor.toNormalizedArray());
+      oldState.blendFactor = newState.blendFactor;
+    }
+
+    // Blend function
+    if (
+      oldState.colorBlendFunc != newState.colorBlendFunc ||
+      oldState.alphaBlendFunc != newState.alphaBlendFunc
+    ) {
+      gl.blendEquationSeparate(
+        newState.colorBlendFunc,
+        newState.alphaBlendFunc
+      );
+      oldState.colorBlendFunc = newState.colorBlendFunc;
+      oldState.alphaBlendFunc = newState.alphaBlendFunc;
+    }
+
+    // Blend values
+    if (
+      oldState.colorSourceBlend != newState.colorSourceBlend ||
+      oldState.colorDestinationBlend != newState.colorDestinationBlend ||
+      oldState.alphaSourceBlend != newState.alphaSourceBlend ||
+      oldState.alphaDestinationBlend != newState.alphaDestinationBlend
+    ) {
+      gl.blendFuncSeparate(
+        newState.colorSourceBlend,
+        newState.colorDestinationBlend,
+        newState.alphaSourceBlend,
+        newState.alphaDestinationBlend
+      );
+      oldState.colorSourceBlend = newState.colorSourceBlend;
+      oldState.colorDestinationBlend = newState.colorDestinationBlend;
+      oldState.alphaSourceBlend = newState.alphaSourceBlend;
+      oldState.alphaDestinationBlend = newState.alphaDestinationBlend;
+    }
+  }
 }

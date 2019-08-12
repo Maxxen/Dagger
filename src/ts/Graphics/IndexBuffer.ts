@@ -19,14 +19,6 @@ export class IndexBuffer {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
   }
 
-  public bind() {
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.id);
-  }
-
-  public unbind() {
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-  }
-
   public dispose() {
     gl.deleteBuffer(this.id);
   }

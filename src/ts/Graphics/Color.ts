@@ -20,4 +20,17 @@ export class Color {
   toArray(): [number, number, number, number] {
     return [this.r, this.g, this.b, this.a];
   }
+
+  equals(other: Color) {
+    return (
+      this.r == other.r &&
+      this.g == other.g &&
+      this.b == other.b &&
+      this.a == other.a
+    );
+  }
+
+  toNormalizedArray(): [number, number, number, number] {
+    return [this.r / 255, this.g / 255, this.b / 255, this.a / 255];
+  }
 }
